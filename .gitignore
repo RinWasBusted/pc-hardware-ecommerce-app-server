@@ -1,0 +1,26 @@
+# Dependency directories (Rất nặng, không bao giờ push lên)
+node_modules/
+jspm_packages/
+
+# Build files (File sau khi biên dịch từ TS sang JS)
+dist/
+out/
+build/
+
+# Environment variables (Chứa mật khẩu, cực kỳ quan trọng phải chặn)
+.env
+.env.local
+.env.development.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# IDE folders
+.vscode/
+.idea/
