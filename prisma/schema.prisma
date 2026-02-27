@@ -34,7 +34,7 @@ model User {
 
   addresses   Addresses[]
   stock_logs   StockLogs[]
-  carts carts?
+  carts Carts?
   orders Orders[]
   order_status_logs OrderStatusLogs[]
   reviews Reviews[]
@@ -97,7 +97,7 @@ model Products {
   description String?
   category_id Int
   brand_id Int
-  specifications Json
+  specifications Json?
   status ProductStatus @default(available)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -186,7 +186,7 @@ model Coupons {
   orders Orders[]
 }
 
-model carts {
+model Carts {
   id Int @id @default(autoincrement())
   user_id Int @unique
   created_at DateTime @default(now())
@@ -206,7 +206,7 @@ model CartItems {
   added_at DateTime @default(now())
 
   @@unique([cart_id, variant_id])
-  cart carts @relation(fields: [cart_id], references: [id])
+  cart Carts @relation(fields: [cart_id], references: [id])
   product_variant ProductVariants @relation(fields: [variant_id], references: [id])
   @@index([cart_id])
   @@index([variant_id])
@@ -307,7 +307,7 @@ enum PaymentStatus {
 model Payments {
   id Int @id @default(autoincrement())
   order_id Int 
-  payment_method PaymentMethod
+  method PaymentMethod
   amount Decimal
   transaction_id String?
   gateway_response Json?
@@ -397,7 +397,7 @@ model ReturnRequests {
   reason String
   status ReTurnStatus @default(pending)
   admin_note String?
-  return_amount Decimal
+  refund_amount Decimal
   created_at DateTime @default(now())
 
   return_items ReturnItems[]
