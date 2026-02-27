@@ -26,6 +26,7 @@ model User {
   password    String
   google_id   String?  @unique
   role        Role     @default(customer)
+  setting     Json?
   is_verified Boolean  @default(false)
   is_active   Boolean  @default(true)
   created_at  DateTime @default(now())
@@ -39,6 +40,7 @@ model User {
   reviews Reviews[]
   wishlists Wishlists[]
   notifications Notifications[]
+  return_requests ReturnRequests[]
 }
 
 model Addresses {
@@ -119,6 +121,7 @@ model ProductVariants {
   color String?
   color_hex String?
   price Decimal
+  compare_at_price Decimal?
   stock Int
   is_active Boolean @default(true)
   created_at DateTime @default(now())
@@ -253,6 +256,7 @@ model Orders {
   order_status_logs OrderStatusLogs[]
   payments Payments[]
   reviews Reviews[]
+  return_requests ReturnRequests[]
 
   user User @relation(fields: [user_id], references: [id])
   address Addresses @relation(fields: [address_id], references: [id])
@@ -269,6 +273,8 @@ model OrderItems {
   quantity Int
   unit_price Decimal
   subtotal Decimal
+
+  return_items ReturnItems[]
 
   order Orders @relation(fields: [order_id], references: [id])
   product_variant ProductVariants @relation(fields: [variant_id], references: [id])
@@ -374,4 +380,59 @@ model Banners {
   sort_order Int @default(0)
   is_active Boolean @default(true)
   created_at DateTime @default(now())
+}
+
+enum ReTurnStatus {
+  pending
+  approved
+  rejected
+  received
+  completed
+}
+
+model ReturnRequests {
+  id Int @id @default(autoincrement())
+  order_id Int
+  user_id Int
+  reason String
+  status ReTurnStatus @default(pending)
+  admin_note String?
+  return_amount Decimal
+  created_at DateTime @default(now())
+
+  return_items ReturnItems[]
+  return_images ReturnImages[]
+
+  order Orders @relation(fields: [order_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
+  @@index([order_id])
+  @@index([user_id])
+}
+
+enum ItemCondition {
+  good
+  damaged
+  wrong_item
+}
+
+model ReturnItems {
+  id Int @id @default(autoincrement())
+  return_request_id Int
+  order_item_id Int
+  quantity Int
+  condition ItemCondition
+
+  return_request ReturnRequests @relation(fields: [return_request_id], references: [id])
+  order_item OrderItems @relation(fields: [order_item_id], references: [id])
+  @@index([return_request_id])
+  @@index([order_item_id])
+}
+
+model ReturnImages {
+  id Int @id @default(autoincrement())
+  return_request_id Int
+  image_url String
+
+  return_request ReturnRequests @relation(fields: [return_request_id], references: [id])
+  @@index([return_request_id])
 }
