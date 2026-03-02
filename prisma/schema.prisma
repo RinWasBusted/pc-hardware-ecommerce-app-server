@@ -58,7 +58,6 @@ model Addresses {
   orders Orders[]
 
   user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  @@index([user_id])
 }
 
 model Categories {
@@ -72,7 +71,6 @@ model Categories {
   children   Categories[] @relation("CategoryToSubcategories")
   parent     Categories? @relation("CategoryToSubcategories", fields: [parent_id], references: [id], onDelete: Cascade)
   products   Products[]
-  @@index([parent_id])
 }
 
 model Brands {
@@ -109,8 +107,6 @@ model Products {
 
   category Categories @relation(fields: [category_id], references: [id])
   brand Brands @relation(fields: [brand_id], references: [id])
-  @@index([category_id])
-  @@index([brand_id])
 }
 
 model ProductVariants {
@@ -134,7 +130,6 @@ model ProductVariants {
   reviews Reviews[]
 
   product Products @relation(fields: [product_id], references: [id])
-  @@index([product_id])
   @@unique([product_id, version, color])
 }
 
@@ -148,8 +143,6 @@ model ProductImages {
 
   product Products @relation(fields: [product_id], references: [id])
   variant ProductVariants? @relation(fields: [variant_id], references: [id])
-  @@index([product_id])
-  @@index([variant_id])
 }
 
 model StockLogs {
@@ -162,8 +155,6 @@ model StockLogs {
 
   product_variant ProductVariants @relation(fields: [variant_id], references: [id])
   admin User @relation(fields: [admin_id], references: [id])
-  @@index([variant_id])
-  @@index([admin_id])
 }
 
 enum DiscountType {
@@ -195,7 +186,6 @@ model Carts {
   cart_items CartItems[]
 
   user User @relation(fields: [user_id], references: [id])
-  @@index([user_id])
 }
 
 model CartItems {
@@ -208,8 +198,6 @@ model CartItems {
   @@unique([cart_id, variant_id])
   cart Carts @relation(fields: [cart_id], references: [id])
   product_variant ProductVariants @relation(fields: [variant_id], references: [id])
-  @@index([cart_id])
-  @@index([variant_id])
 }
 
 enum PaymentMethod {
@@ -261,9 +249,6 @@ model Orders {
   user User @relation(fields: [user_id], references: [id])
   address Addresses @relation(fields: [address_id], references: [id])
   coupon Coupons? @relation(fields: [coupon_id], references: [id])
-  @@index([user_id])
-  @@index([address_id])
-  @@index([coupon_id])
 }
 
 model OrderItems {
@@ -278,8 +263,6 @@ model OrderItems {
 
   order Orders @relation(fields: [order_id], references: [id])
   product_variant ProductVariants @relation(fields: [variant_id], references: [id])
-  @@index([order_id])
-  @@index([variant_id])
 }
 
 model OrderStatusLogs {
@@ -293,8 +276,6 @@ model OrderStatusLogs {
 
   order Orders @relation(fields: [order_id], references: [id])
   admin User @relation(fields: [changed_by], references: [id])
-  @@index([order_id])
-  @@index([changed_by])
 }
 
 enum PaymentStatus {
@@ -316,7 +297,6 @@ model Payments {
   created_at DateTime @default(now())
 
   order Orders @relation(fields: [order_id], references: [id])
-  @@index([order_id])
 }
 
 model Reviews {
@@ -334,10 +314,6 @@ model Reviews {
   product Products @relation(fields: [product_id], references: [id])
   variant ProductVariants @relation(fields: [variant_id], references: [id])
   order Orders @relation(fields: [order_id], references: [id])
-  @@index([user_id])
-  @@index([product_id])
-  @@index([variant_id])
-  @@index([order_id])
 }
 
 model Wishlists {
@@ -349,8 +325,6 @@ model Wishlists {
   user User @relation(fields: [user_id], references: [id])
   product Products @relation(fields: [product_id], references: [id])
   @@unique([user_id, product_id])
-  @@index([user_id])
-  @@index([product_id])
 }
 
 enum NotificationType {
@@ -370,7 +344,6 @@ model Notifications {
   created_at DateTime @default(now())
 
   user User? @relation(fields: [user_id], references: [id])
-  @@index([user_id])
 }
 
 model Banners {
@@ -405,8 +378,6 @@ model ReturnRequests {
 
   order Orders @relation(fields: [order_id], references: [id])
   user User @relation(fields: [user_id], references: [id])
-  @@index([order_id])
-  @@index([user_id])
 }
 
 enum ItemCondition {
@@ -424,8 +395,6 @@ model ReturnItems {
 
   return_request ReturnRequests @relation(fields: [return_request_id], references: [id])
   order_item OrderItems @relation(fields: [order_item_id], references: [id])
-  @@index([return_request_id])
-  @@index([order_item_id])
 }
 
 model ReturnImages {
@@ -434,5 +403,4 @@ model ReturnImages {
   image_url String
 
   return_request ReturnRequests @relation(fields: [return_request_id], references: [id])
-  @@index([return_request_id])
 }
