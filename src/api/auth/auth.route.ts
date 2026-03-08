@@ -9,7 +9,7 @@ import {
     resetPasswordSchema
 } from './auth.validation.js';
 import { validate } from '../../middleware/validate.middleware.js';
-import { authenticate } from '../../middleware/auth.middleware.js';
+import { Authenticate } from '../../middleware/auth.middleware.js';
 
 export const authRouter = Router();
 
@@ -167,6 +167,14 @@ authRouter.get('/verify-email', authController.verifyEmail);
  *             schema:
  *               type: object
  *               properties:
+ *                 access_token:
+ *                   type: string
+ *                   description: Access Token để sử dụng trong Authorization header
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 refresh_token:
+ *                   type: string
+ *                   description: Refresh Token để lấy access token mới
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 user:
  *                   type: object
  *                   properties:
@@ -183,11 +191,6 @@ authRouter.get('/verify-email', authController.verifyEmail);
  *                       type: string
  *                       enum: [customer, admin]
  *                       example: "customer"
- *         headers:
- *           Set-Cookie:
- *             schema:
- *               type: string
- *               example: "access_token=...; HttpOnly; Secure; Path=/; Max-Age=900"
  *       401:
  *         description: Email hoặc mật khẩu không đúng, hoặc tài khoản chưa verify
  *         content:
@@ -228,6 +231,14 @@ authRouter.post('/login', validate(loginSchema), authController.login);
  *             schema:
  *               type: object
  *               properties:
+ *                 access_token:
+ *                   type: string
+ *                   description: Access Token để sử dụng trong Authorization header
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 refresh_token:
+ *                   type: string
+ *                   description: Refresh Token để lấy access token mới
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 user:
  *                   type: object
  *                   properties:
@@ -243,11 +254,6 @@ authRouter.post('/login', validate(loginSchema), authController.login);
  *                     role:
  *                       type: string
  *                       example: "customer"
- *         headers:
- *           Set-Cookie:
- *             schema:
- *               type: string
- *               example: "access_token=...; HttpOnly; Secure; Path=/; Max-Age=900"
  *       401:
  *         description: ID token không hợp lệ
  *         content:
@@ -266,8 +272,20 @@ authRouter.post('/google', validate(googleLoginSchema), authController.googleLog
  * /auth/refresh:
  *   post:
  *     summary: Làm mới Access Token
- *     description: Lấy Access Token mới từ Refresh Token trong cookie. Không cần gửi request body.
+ *     description: Lấy Access Token mới từ Refresh Token. Gửi refresh token trong request body.
  *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refresh_token]
+ *             properties:
+ *               refresh_token:
+ *                 type: string
+ *                 description: Refresh Token từ đăng nhập hoặc refresh token trước đó
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *     responses:
  *       200:
  *         description: Lấy Access Token mới thành công
@@ -276,14 +294,17 @@ authRouter.post('/google', validate(googleLoginSchema), authController.googleLog
  *             schema:
  *               type: object
  *               properties:
+ *                 access_token:
+ *                   type: string
+ *                   description: Access Token mới
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 refresh_token:
+ *                   type: string
+ *                   description: Refresh Token mới
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 message:
  *                   type: string
  *                   example: "Token đã được làm mới"
- *         headers:
- *           Set-Cookie:
- *             schema:
- *               type: string
- *               example: "access_token=...; HttpOnly; Secure; Path=/; Max-Age=900"
  *       400:
  *         description: Refresh Token không được cung cấp
  *         content:
@@ -404,10 +425,22 @@ authRouter.post('/reset-password', validate(resetPasswordSchema), authController
  * /auth/logout:
  *   post:
  *     summary: Đăng xuất
- *     description: Đăng xuất tài khoản hiện tại. Cần xác thực bằng Access Token.
+ *     description: Đăng xuất tài khoản hiện tại. Cần xác thực bằng Access Token (Authorization header).
  *     tags: [Auth]
  *     security:
  *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refresh_token]
+ *             properties:
+ *               refresh_token:
+ *                 type: string
+ *                 description: Refresh Token cần được invalidate khi đăng xuất
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *     responses:
  *       200:
  *         description: Đăng xuất thành công
@@ -419,6 +452,16 @@ authRouter.post('/reset-password', validate(resetPasswordSchema), authController
  *                 message:
  *                   type: string
  *                   example: "Đăng xuất thành công"
+ *       400:
+ *         description: Refresh Token không được cung cấp
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Refresh token không được để trống"
  *       401:
  *         description: Không được xác thực
  *         content:
@@ -430,4 +473,4 @@ authRouter.post('/reset-password', validate(resetPasswordSchema), authController
  *                   type: string
  *                   example: "Token không được cung cấp"
  */
-authRouter.post('/logout', authenticate, authController.logout);
+authRouter.post('/logout', Authenticate, authController.logout);
