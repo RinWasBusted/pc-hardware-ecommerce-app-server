@@ -11,9 +11,8 @@ export interface AuthRequest extends Request {
 
 export const Authenticate = (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Get access token from Authorization header (Bearer token)
     const authHeader = req.headers.authorization;
-    
+      
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Token không được cung cấp' });
     }
@@ -21,6 +20,11 @@ export const Authenticate = (req: Request, res: Response, next: NextFunction) =>
     const token = authHeader.slice(7);
     const payload = verifyAccessToken(token);
     (req as AuthRequest).user = payload;
+    
+    res.locals.user = payload;
+    res.locals.userId = payload.userId;
+    res.locals.email = payload.email;
+    res.locals.role = payload.role;
     
     next();
   } catch (error: any) {

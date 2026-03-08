@@ -24,6 +24,7 @@ model User {
   email       String   @unique
   phone_number String?
   password    String
+  avatar_url  String?
   google_id   String?  @unique
   role        Role     @default(customer)
   setting     Json?
