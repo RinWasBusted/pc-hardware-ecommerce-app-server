@@ -9,15 +9,16 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const Authenticate = (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Get access token from cookies
-    const token = req.cookies?.access_token;
+    // Get access token from Authorization header (Bearer token)
+    const authHeader = req.headers.authorization;
     
-    if (!token) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Token không được cung cấp' });
     }
     
+    const token = authHeader.slice(7);
     const payload = verifyAccessToken(token);
     (req as AuthRequest).user = payload;
     
@@ -27,7 +28,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
-export const authorize = (...roles: string[]) => {
+export const Authorize = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as AuthRequest).user;
     
