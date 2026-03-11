@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { GetMe, UpdateMe, ChangePasswordMe, GetMyAddresses, AddAddress, UpdateMyAddress, DeleteMyAddress, SetMyDefaultAddress } from './user.controller.js';
+import { GetMe, UpdateMe, ChangePasswordMe, GetMyAddresses, AddAddress, UpdateMyAddress, DeleteMyAddress, SetMyDefaultAddress, UpdateMyAvatar } from './user.controller.js';
 import { Authenticate } from '../../middleware/auth.middleware.js';
+import { uploadSingle } from '../../utils/multer.js';
 
 const router = Router();
 
@@ -153,6 +154,36 @@ router.get('/me', Authenticate, GetMe);
  *         description: Lỗi server hoặc validation
  */
 router.put('/me', Authenticate, UpdateMe);
+
+/**
+ * @swagger
+ * /users/me/avatar:
+ *   patch:
+ *     summary: Cập nhật avatar người dùng
+ *     description: Upload ảnh avatar mới để cập nhật; nếu không gửi file avatar thì hệ thống sẽ xóa avatar hiện tại. **Yêu cầu Bearer Token**
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Cập nhật avatar thành công
+ *       400:
+ *         description: Upload thất bại
+ *       401:
+ *         description: Token không hợp lệ hoặc đã hết hạn
+ */
+router.patch('/me/avatar', Authenticate, uploadSingle('avatar'), UpdateMyAvatar);
 
 /**
  * @swagger

@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import { GetUserProfile, UpdateUserProfile, ChangePassword, GetUserAddresses, CreateAddress, UpdateAddress, DeleteAddress, SetDefaultAddress } from './user.service.js';
+import { uploadImageToCloudinary } from '../../utils/cloudinary.js';
+import { UpdateUserAvatar } from './user.service.js';
 import type { AuthRequest } from '../../middleware/auth.middleware.js';
 
 export const GetMe = async (req: Request, res: Response) => {
@@ -201,6 +203,41 @@ export const SetMyDefaultAddress = async (req: Request, res: Response) => {
       success: true,
       data: updatedAddress,
       message: 'Đặt làm địa chỉ mặc định thành công',
+    });
+  } catch (error: any) {
+    return res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const UpdateMyAvatar = async (req: Request, res: Response) => {
+  try {
+    const userId = res.locals.userId;
+
+    if (!req.file) {
+      const updatedUser = await UpdateUserAvatar(userId, null);
+
+      return res.status(200).json({
+        success: true,
+        data: updatedUser,
+        message: 'Xóa avatar thành công',
+      });
+    }
+
+    const uploadResult = await uploadImageToCloudinary(
+      req.file.buffer,
+      req.file.originalname,
+      'pc-hardware-ecommerce/users/avatars',
+    );
+
+    const updatedUser = await UpdateUserAvatar(userId, uploadResult.public_id);
+
+    return res.status(200).json({
+      success: true,
+      data: updatedUser,
+      message: 'Cập nhật avatar thành công',
     });
   } catch (error: any) {
     return res.status(400).json({
