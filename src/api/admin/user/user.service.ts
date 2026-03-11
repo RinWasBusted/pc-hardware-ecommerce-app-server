@@ -1,4 +1,4 @@
-import { prisma } from '../../utils/prisma.js';
+import { prisma } from '../../../utils/prisma.js';
 
 export const GetUsers = async (filters: {
 	role?: string;
@@ -105,4 +105,3 @@ export const UpdateUserStatus = async (userId: number, isActive: boolean) => {
 
 	return updatedUser;
 };
-

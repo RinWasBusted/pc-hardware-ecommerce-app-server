@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { GetUsers, GetUserDetail, UpdateUserStatus } from './admin.service.js';
+import { GetUsers, GetUserDetail, UpdateUserStatus } from './user.service.js';
 
 export const GetUsersController = async (req: Request, res: Response) => {
 	try {
@@ -95,4 +95,3 @@ export const UpdateUserStatusController = async (req: Request, res: Response) =>
 		});
 	}
 };
-

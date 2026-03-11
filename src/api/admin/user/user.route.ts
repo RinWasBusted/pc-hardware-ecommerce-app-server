@@ -3,8 +3,7 @@ import {
 	GetUsersController,
 	GetUserDetailController,
 	UpdateUserStatusController,
-} from './admin.controller.js';
-import { Authenticate, Authorize } from '../../middleware/auth.middleware.js';
+} from './user.controller.js';
 
 const router = Router();
 
@@ -43,7 +42,7 @@ const router = Router();
  *       403:
  *         description: Không có quyền truy cập
  */
-router.get('/users', Authenticate, Authorize('admin'), GetUsersController);
+router.get('/', GetUsersController);
 
 /**
  * @swagger
@@ -71,7 +70,7 @@ router.get('/users', Authenticate, Authorize('admin'), GetUsersController);
  *       403:
  *         description: Không có quyền truy cập
  */
-router.get('/users/:id', Authenticate, Authorize('admin'), GetUserDetailController);
+router.get('/:id', GetUserDetailController);
 
 /**
  * @swagger
@@ -112,7 +111,6 @@ router.get('/users/:id', Authenticate, Authorize('admin'), GetUserDetailControll
  *       403:
  *         description: Không có quyền truy cập
  */
-router.patch('/users/:id/status', Authenticate, Authorize('admin'), UpdateUserStatusController);
+router.patch('/:id/status', UpdateUserStatusController);
 
 export default router;
-
