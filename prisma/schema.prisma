@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -91,6 +90,7 @@ enum ProductStatus {
 
 model Products {
   id Int @id @default(autoincrement())
+  sku String @unique
   name String
   slug String @unique
   description String?
