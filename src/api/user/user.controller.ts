@@ -17,7 +17,7 @@ export const GetMe = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -41,7 +41,7 @@ export const UpdateMe = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -54,7 +54,7 @@ export const ChangePasswordMe = async (req: Request, res: Response) => {
     if (!old_password || !new_password) {
       return res.status(400).json({
         success: false,
-        error: 'Mật khẩu cũ và mật khẩu mới là bắt buộc',
+        message: 'Mật khẩu cũ và mật khẩu mới là bắt buộc',
       });
     }
 
@@ -67,7 +67,7 @@ export const ChangePasswordMe = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -85,7 +85,7 @@ export const GetMyAddresses = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -98,7 +98,7 @@ export const AddAddress = async (req: Request, res: Response) => {
     if (!recipient || !phone_number || !province || !district || !ward || !street) {
       return res.status(400).json({
         success: false,
-        error: 'Vui lòng điền đầy đủ thông tin',
+        message: 'Vui lòng điền đầy đủ thông tin',
       });
     }
 
@@ -119,7 +119,7 @@ export const AddAddress = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -133,7 +133,7 @@ export const UpdateMyAddress = async (req: Request, res: Response) => {
     if (isNaN(addressId)) {
       return res.status(400).json({
         success: false,
-        error: 'ID địa chỉ không hợp lệ',
+        message: 'ID địa chỉ không hợp lệ',
       });
     }
 
@@ -154,7 +154,7 @@ export const UpdateMyAddress = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -167,7 +167,7 @@ export const DeleteMyAddress = async (req: Request, res: Response) => {
     if (isNaN(addressId)) {
       return res.status(400).json({
         success: false,
-        error: 'ID địa chỉ không hợp lệ',
+        message: 'ID địa chỉ không hợp lệ',
       });
     }
 
@@ -180,7 +180,7 @@ export const DeleteMyAddress = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -193,7 +193,7 @@ export const SetMyDefaultAddress = async (req: Request, res: Response) => {
     if (isNaN(addressId)) {
       return res.status(400).json({
         success: false,
-        error: 'ID địa chỉ không hợp lệ',
+        message: 'ID địa chỉ không hợp lệ',
       });
     }
 
@@ -207,7 +207,7 @@ export const SetMyDefaultAddress = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };
@@ -242,7 +242,7 @@ export const UpdateMyAvatar = async (req: Request, res: Response) => {
   } catch (error: any) {
     return res.status(400).json({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 };

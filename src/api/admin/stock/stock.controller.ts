@@ -9,7 +9,7 @@ export const GetLowStockVariantsController = async (req: Request, res: Response)
 		if (Number.isNaN(threshold) || threshold < 0) {
 			return res.status(400).json({
 				success: false,
-				error: 'threshold không hợp lệ',
+				message: 'threshold không hợp lệ',
 			});
 		}
 
@@ -22,7 +22,7 @@ export const GetLowStockVariantsController = async (req: Request, res: Response)
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -35,14 +35,14 @@ export const CreateStockInboundController = async (req: Request, res: Response) 
 		if (!Array.isArray(entries) || entries.length === 0) {
 			return res.status(400).json({
 				success: false,
-				error: 'Body phải là mảng dữ liệu nhập kho',
+				message: 'Body phải là mảng dữ liệu nhập kho',
 			});
 		}
 
 		if (Number.isNaN(adminId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'Không xác định được admin',
+				message: 'Không xác định được admin',
 			});
 		}
 
@@ -68,7 +68,7 @@ export const CreateStockInboundController = async (req: Request, res: Response) 
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -82,14 +82,14 @@ export const GetStockLogsController = async (req: Request, res: Response) => {
 		if (variantIdRaw && Number.isNaN(variantId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'variant_id không hợp lệ',
+				message: 'variant_id không hợp lệ',
 			});
 		}
 
 		if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 			return res.status(400).json({
 				success: false,
-				error: 'date không đúng định dạng YYYY-MM-DD',
+				message: 'date không đúng định dạng YYYY-MM-DD',
 			});
 		}
 
@@ -105,7 +105,7 @@ export const GetStockLogsController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };

@@ -22,14 +22,14 @@ export const GetProductsController = async (req: Request, res: Response) => {
 			|| (priceMax !== undefined && Number.isNaN(priceMax))) {
 			return res.status(400).json({
 				success: false,
-				error: 'Tham số lọc không hợp lệ',
+				message: 'Tham số lọc không hợp lệ',
 			});
 		}
 
 		if (priceMin !== undefined && priceMax !== undefined && priceMin > priceMax) {
 			return res.status(400).json({
 				success: false,
-				error: 'Khoảng giá không hợp lệ',
+				message: 'Khoảng giá không hợp lệ',
 			});
 		}
 
@@ -52,7 +52,7 @@ export const GetProductsController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -64,7 +64,7 @@ export const GetProductDetailController = async (req: Request, res: Response) =>
 		if (!slug || typeof slug !== 'string') {
 			return res.status(400).json({
 				success: false,
-				error: 'Slug không hợp lệ',
+				message: 'Slug không hợp lệ',
 			});
 		}
 
@@ -77,7 +77,7 @@ export const GetProductDetailController = async (req: Request, res: Response) =>
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -91,7 +91,7 @@ export const GetProductsByCategoryController = async (req: Request, res: Respons
 		if (Number.isNaN(categoryId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID danh mục không hợp lệ',
+				message: 'ID danh mục không hợp lệ',
 			});
 		}
 
@@ -104,7 +104,7 @@ export const GetProductsByCategoryController = async (req: Request, res: Respons
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };

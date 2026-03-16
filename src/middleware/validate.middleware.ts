@@ -11,7 +11,11 @@ export const validate = (schema: ZodSchema) => {
         field: err.path.join('.'),
         message: err.message
       }));
-      res.status(400).json({ error: 'Validation failed', errors });
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
     }
   };
 };

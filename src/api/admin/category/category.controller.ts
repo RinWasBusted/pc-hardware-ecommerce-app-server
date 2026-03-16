@@ -26,7 +26,7 @@ export const CreateCategoryController = async (req: Request, res: Response) => {
 		if (typeof name !== 'string' || !name.trim()) {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường name là bắt buộc',
+				message: 'Trường name là bắt buộc',
 			});
 		}
 
@@ -34,7 +34,7 @@ export const CreateCategoryController = async (req: Request, res: Response) => {
 		if (parent_id !== undefined && parsedParentId === undefined) {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường parent_id không hợp lệ',
+				message: 'Trường parent_id không hợp lệ',
 			});
 		}
 
@@ -61,7 +61,7 @@ export const CreateCategoryController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -74,14 +74,14 @@ export const UpdateCategoryController = async (req: Request, res: Response) => {
 		if (Number.isNaN(categoryId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID danh mục không hợp lệ',
+				message: 'ID danh mục không hợp lệ',
 			});
 		}
 
 		if (typeof name !== 'string' || !name.trim()) {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường name là bắt buộc',
+				message: 'Trường name là bắt buộc',
 			});
 		}
 
@@ -89,7 +89,7 @@ export const UpdateCategoryController = async (req: Request, res: Response) => {
 		if (parent_id !== undefined && parsedParentId === undefined) {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường parent_id không hợp lệ',
+				message: 'Trường parent_id không hợp lệ',
 			});
 		}
 
@@ -116,7 +116,7 @@ export const UpdateCategoryController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -128,7 +128,7 @@ export const DeleteCategoryController = async (req: Request, res: Response) => {
 		if (Number.isNaN(categoryId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID danh mục không hợp lệ',
+				message: 'ID danh mục không hợp lệ',
 			});
 		}
 
@@ -142,7 +142,7 @@ export const DeleteCategoryController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
