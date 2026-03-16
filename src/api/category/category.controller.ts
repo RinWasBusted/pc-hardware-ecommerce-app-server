@@ -12,7 +12,7 @@ export const GetCategoriesController = async (_req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -24,7 +24,7 @@ export const GetCategoryDetailController = async (req: Request, res: Response) =
 		if (Number.isNaN(categoryId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID danh mục không hợp lệ',
+				message: 'ID danh mục không hợp lệ',
 			});
 		}
 
@@ -37,7 +37,7 @@ export const GetCategoryDetailController = async (req: Request, res: Response) =
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };

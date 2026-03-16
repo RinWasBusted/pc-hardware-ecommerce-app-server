@@ -9,14 +9,14 @@ export const CreateBrandController = async (req: Request, res: Response) => {
 		if (typeof name !== 'string' || !name.trim()) {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường name là bắt buộc',
+				message: 'Trường name là bắt buộc',
 			});
 		}
 
 		if (!req.file) {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường logo là bắt buộc và phải là file ảnh',
+				message: 'Trường logo là bắt buộc và phải là file ảnh',
 			});
 		}
 
@@ -42,7 +42,7 @@ export const CreateBrandController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -55,14 +55,14 @@ export const UpdateBrandController = async (req: Request, res: Response) => {
 		if (Number.isNaN(brandId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID thương hiệu không hợp lệ',
+				message: 'ID thương hiệu không hợp lệ',
 			});
 		}
 
 		if (typeof name !== 'string' || !name.trim()) {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường name là bắt buộc',
+				message: 'Trường name là bắt buộc',
 			});
 		}
 
@@ -92,7 +92,7 @@ export const UpdateBrandController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -104,7 +104,7 @@ export const DeleteBrandController = async (req: Request, res: Response) => {
 		if (Number.isNaN(brandId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID thương hiệu không hợp lệ',
+				message: 'ID thương hiệu không hợp lệ',
 			});
 		}
 
@@ -118,7 +118,7 @@ export const DeleteBrandController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };

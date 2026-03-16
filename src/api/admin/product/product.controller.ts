@@ -25,21 +25,21 @@ export const getAdminProducts = async (req: Request, res: Response) => {
             || (priceMax !== undefined && Number.isNaN(priceMax))) {
             return res.status(400).json({
                 success: false,
-                error: 'Tham số lọc không hợp lệ'
+                message: 'Tham số lọc không hợp lệ'
             });
         }
 
         if (priceMin !== undefined && priceMax !== undefined && priceMin > priceMax) {
             return res.status(400).json({
                 success: false,
-                error: 'Khoảng giá không hợp lệ'
+                message: 'Khoảng giá không hợp lệ'
             });
         }
 
         if (status && Object.keys(ProductStatus).indexOf(status) === -1) {
             return res.status(400).json({
                 success: false,
-                error: 'Trường status không hợp lệ'
+                message: 'Trường status không hợp lệ'
             });
         }
 
@@ -62,7 +62,7 @@ export const getAdminProducts = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -93,14 +93,14 @@ export const createProduct = async (req: Request, res: Response) => {
         if (!sku || !name || Number.isNaN(parsedCategoryId) || Number.isNaN(parsedBrandId) || !Array.isArray(parsedVariants) || parsedVariants.length === 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Thiếu dữ liệu bắt buộc: sku, name, category_id, brand_id, variants'
+                message: 'Thiếu dữ liệu bắt buộc: sku, name, category_id, brand_id, variants'
             });
         }
 
         if (status && Object.keys(ProductStatus).indexOf(status) === -1) {
             return res.status(400).json({
                 success: false,
-                error: 'Trường status không hợp lệ'
+                message: 'Trường status không hợp lệ'
             })
         }
 
@@ -110,7 +110,7 @@ export const createProduct = async (req: Request, res: Response) => {
         if (productImageFiles.length > 8) {
             return res.status(400).json({
                 success: false,
-                error: 'Mỗi sản phẩm chỉ được tối đa 8 ảnh'
+                message: 'Mỗi sản phẩm chỉ được tối đa 8 ảnh'
             });
         }
 
@@ -142,7 +142,7 @@ export const createProduct = async (req: Request, res: Response) => {
         if (invalidVariantImageFields.length > 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Ảnh biến thể không khớp với danh sách variants'
+                message: 'Ảnh biến thể không khớp với danh sách variants'
             });
         }
 
@@ -157,14 +157,14 @@ export const createProduct = async (req: Request, res: Response) => {
         if (sequentialIndex < sequentialVariantImageFiles.length) {
             return res.status(400).json({
                 success: false,
-                error: 'Số lượng ảnh biến thể vượt quá số lượng variants'
+                message: 'Số lượng ảnh biến thể vượt quá số lượng variants'
             });
         }
 
         if (variantImageFilesByIndex.some((file) => !file)) {
             return res.status(400).json({
                 success: false,
-                error: 'Mỗi biến thể phải có đúng 1 ảnh'
+                message: 'Mỗi biến thể phải có đúng 1 ảnh'
             });
         }
 
@@ -214,7 +214,7 @@ export const createProduct = async (req: Request, res: Response) => {
     } catch (error: any){
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         })
     }
 }
@@ -227,7 +227,7 @@ export const updateProduct = async (req: Request, res: Response) => {
         if (Number.isNaN(productId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID sản phẩm không hợp lệ'
+                message: 'ID sản phẩm không hợp lệ'
             });
         }
 
@@ -249,14 +249,14 @@ export const updateProduct = async (req: Request, res: Response) => {
             || (parsedBrandId !== undefined && Number.isNaN(parsedBrandId))) {
             return res.status(400).json({
                 success: false,
-                error: 'category_id hoặc brand_id không hợp lệ'
+                message: 'category_id hoặc brand_id không hợp lệ'
             });
         }
 
         if (!sku && !name && description === undefined && parsedCategoryId === undefined && parsedBrandId === undefined && parsedSpecifications === undefined) {
             return res.status(400).json({
                 success: false,
-                error: 'Không có dữ liệu để cập nhật'
+                message: 'Không có dữ liệu để cập nhật'
             });
         }
 
@@ -290,7 +290,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -302,7 +302,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
         if (Number.isNaN(productId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID sản phẩm không hợp lệ'
+                message: 'ID sản phẩm không hợp lệ'
             });
         }
 
@@ -316,7 +316,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -329,14 +329,14 @@ export const updateProductStatus = async (req: Request, res: Response) => {
         if (Number.isNaN(productId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID sản phẩm không hợp lệ'
+                message: 'ID sản phẩm không hợp lệ'
             });
         }
 
         if (!status || Object.keys(ProductStatus).indexOf(status) === -1) {
             return res.status(400).json({
                 success: false,
-                error: 'Trường status không hợp lệ'
+                message: 'Trường status không hợp lệ'
             });
         }
 
@@ -350,7 +350,7 @@ export const updateProductStatus = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -363,7 +363,7 @@ export const createVariantForProduct = async (req: Request, res: Response) => {
         if (Number.isNaN(productId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID sản phẩm không hợp lệ'
+                message: 'ID sản phẩm không hợp lệ'
             });
         }
 
@@ -379,21 +379,21 @@ export const createVariantForProduct = async (req: Request, res: Response) => {
         if (!sku || Number.isNaN(parsedPrice) || Number.isNaN(parsedStock)) {
             return res.status(400).json({
                 success: false,
-                error: 'Thiếu dữ liệu bắt buộc: sku, price, stock'
+                message: 'Thiếu dữ liệu bắt buộc: sku, price, stock'
             });
         }
 
         if (req.file === undefined) {
             return res.status(400).json({
                 success: false,
-                error: 'Trường variant_image là bắt buộc'
+                message: 'Trường variant_image là bắt buộc'
             });
         }
 
         if (parsedCompareAtPrice !== undefined && Number.isNaN(parsedCompareAtPrice)) {
             return res.status(400).json({
                 success: false,
-                error: 'compare_at_price không hợp lệ'
+                message: 'compare_at_price không hợp lệ'
             });
         }
 
@@ -434,7 +434,7 @@ export const createVariantForProduct = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -447,7 +447,7 @@ export const updateVariant = async (req: Request, res: Response) => {
         if (Number.isNaN(variantId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID biến thể không hợp lệ'
+                message: 'ID biến thể không hợp lệ'
             });
         }
 
@@ -462,14 +462,14 @@ export const updateVariant = async (req: Request, res: Response) => {
             || (parsedCompareAtPrice !== undefined && Number.isNaN(parsedCompareAtPrice))) {
             return res.status(400).json({
                 success: false,
-                error: 'Giá hoặc tồn kho không hợp lệ'
+                message: 'Giá hoặc tồn kho không hợp lệ'
             });
         }
 
         if (!sku && !version && !color && !color_hex && parsedPrice === undefined && parsedCompareAtPrice === undefined && parsedStock === undefined && !req.file) {
             return res.status(400).json({
                 success: false,
-                error: 'Không có dữ liệu để cập nhật'
+                message: 'Không có dữ liệu để cập nhật'
             });
         }
 
@@ -509,7 +509,7 @@ export const updateVariant = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -521,7 +521,7 @@ export const deleteVariant = async (req: Request, res: Response) => {
         if (Number.isNaN(variantId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID biến thể không hợp lệ'
+                message: 'ID biến thể không hợp lệ'
             });
         }
 
@@ -535,7 +535,7 @@ export const deleteVariant = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -548,7 +548,7 @@ export const updateVariantStatus = async (req: Request, res: Response) => {
         if (Number.isNaN(variantId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID biến thể không hợp lệ'
+                message: 'ID biến thể không hợp lệ'
             });
         }
 
@@ -559,7 +559,7 @@ export const updateVariantStatus = async (req: Request, res: Response) => {
         if (parsedIsActive === undefined) {
             return res.status(400).json({
                 success: false,
-                error: 'Trường is_active không hợp lệ'
+                message: 'Trường is_active không hợp lệ'
             });
         }
 
@@ -573,7 +573,7 @@ export const updateVariantStatus = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -585,7 +585,7 @@ export const getProductVariants = async (req: Request, res: Response) => {
         if (Number.isNaN(productId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID sản phẩm không hợp lệ'
+                message: 'ID sản phẩm không hợp lệ'
             });
         }
 
@@ -598,7 +598,7 @@ export const getProductVariants = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -610,7 +610,7 @@ export const uploadProductImages = async (req: Request, res: Response) => {
         if (Number.isNaN(productId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID sản phẩm không hợp lệ'
+                message: 'ID sản phẩm không hợp lệ'
             });
         }
 
@@ -619,7 +619,7 @@ export const uploadProductImages = async (req: Request, res: Response) => {
         if (files.length === 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Trường images là bắt buộc'
+                message: 'Trường images là bắt buộc'
             });
         }
 
@@ -628,7 +628,7 @@ export const uploadProductImages = async (req: Request, res: Response) => {
         if (files.length > remainingSlots) {
             return res.status(400).json({
                 success: false,
-                error: 'Mỗi sản phẩm chỉ được tối đa 8 ảnh'
+                message: 'Mỗi sản phẩm chỉ được tối đa 8 ảnh'
             });
         }
 
@@ -650,7 +650,7 @@ export const uploadProductImages = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -662,7 +662,7 @@ export const deleteProductImage = async (req: Request, res: Response) => {
         if (Number.isNaN(imageId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID ảnh không hợp lệ'
+                message: 'ID ảnh không hợp lệ'
             });
         }
 
@@ -676,7 +676,7 @@ export const deleteProductImage = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -688,7 +688,7 @@ export const setProductImagePrimary = async (req: Request, res: Response) => {
         if (Number.isNaN(imageId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID ảnh không hợp lệ'
+                message: 'ID ảnh không hợp lệ'
             });
         }
 
@@ -702,7 +702,7 @@ export const setProductImagePrimary = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -714,14 +714,14 @@ export const updateVariantImage = async (req: Request, res: Response) => {
         if (Number.isNaN(variantId)) {
             return res.status(400).json({
                 success: false,
-                error: 'ID biến thể không hợp lệ'
+                message: 'ID biến thể không hợp lệ'
             });
         }
 
         if (!req.file) {
             return res.status(400).json({
                 success: false,
-                error: 'Trường variant_image là bắt buộc'
+                message: 'Trường variant_image là bắt buộc'
             });
         }
 
@@ -745,7 +745,7 @@ export const updateVariantImage = async (req: Request, res: Response) => {
     } catch (error: any) {
         return res.status(400).json({
             success: false,
-            error: error.message
+            message: error.message
         });
     }
 };

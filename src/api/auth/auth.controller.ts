@@ -14,9 +14,15 @@ export const register = async (req: Request, res: Response) => {
 	try {
 		const data: RegisterInput = req.body;
 		const result = await authService.register(data);
-		res.status(201).json(result);
+		res.status(201).json({
+			success: true,
+			...result
+		});
 	} catch (error: any) {
-		res.status(400).json({ error: error.message });
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 
@@ -24,12 +30,21 @@ export const verifyEmail = async (req: Request, res: Response) => {
 	try {
 		const { token } = req.query;
 		if (!token || typeof token !== 'string') {
-			return res.status(400).json({ error: 'Token không hợp lệ' });
+			return res.status(400).json({
+				success: false,
+				message: 'Token không hợp lệ'
+			});
 		}
 		const result = await authService.verifyEmail(token);
-		res.status(200).json(result);
+		res.status(200).json({
+			success: true,
+			...result
+		});
 	} catch (error: any) {
-		res.status(400).json({ error: error.message });
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 
@@ -39,12 +54,16 @@ export const login = async (req: Request, res: Response) => {
 		const result = await authService.login(data);
 
 		res.status(200).json({
+			success: true,
 			access_token: result.tokens.access_token,
 			refresh_token: result.tokens.refresh_token,
 			user: result.user
 		});
 	} catch (error: any) {
-		res.status(401).json({ error: error.message });
+		res.status(401).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 
@@ -53,12 +72,16 @@ export const googleLogin = async (req: Request, res: Response) => {
 		const data: GoogleLoginInput = req.body;
 		const result = await authService.googleLogin(data);
 		res.status(200).json({
+			success: true,
 			access_token: result.access_token,
 			refresh_token: result.refresh_token,
 			user: result.user
 		});
 	} catch (error: any) {
-		res.status(401).json({ error: error.message });
+		res.status(401).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 
@@ -67,18 +90,25 @@ export const refreshToken = async (req: Request, res: Response) => {
 		const { refresh_token } = req.body;
 		
 		if (!refresh_token) {
-			return res.status(400).json({ error: 'Refresh token không được cung cấp' });
+			return res.status(400).json({
+				success: false,
+				message: 'Refresh token không được cung cấp'
+			});
 		}
 
 		const result = await authService.refreshAccessToken(refresh_token);
 
 		res.status(200).json({
+			success: true,
 			access_token: result.access_token,
 			refresh_token: result.refresh_token,
 			message: 'Token đã được làm mới'
 		});
 	} catch (error: any) {
-		res.status(401).json({ error: error.message });
+		res.status(401).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 
@@ -86,9 +116,15 @@ export const forgotPassword = async (req: Request, res: Response) => {
 	try {
 		const data: ForgotPasswordInput = req.body;
 		const result = await authService.forgotPassword(data);
-		res.status(200).json(result);
+		res.status(200).json({
+			success: true,
+			...result
+		});
 	} catch (error: any) {
-		res.status(400).json({ error: error.message });
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 
@@ -96,9 +132,15 @@ export const resetPassword = async (req: Request, res: Response) => {
 	try {
 		const data: ResetPasswordInput = req.body;
 		const result = await authService.resetPassword(data);
-		res.status(200).json(result);
+		res.status(200).json({
+			success: true,
+			...result
+		});
 	} catch (error: any) {
-		res.status(400).json({ error: error.message });
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 
@@ -108,13 +150,22 @@ export const logout = async (req: Request, res: Response) => {
 		const { refresh_token } = req.body;
     
 		if (!refresh_token) {
-			return res.status(400).json({ error: 'Refresh token không được để trống' });
+			return res.status(400).json({
+				success: false,
+				message: 'Refresh token không được để trống'
+			});
 		}
 
 		const result = await authService.logout(userId, refresh_token);
-		res.status(200).json(result);
+		res.status(200).json({
+			success: true,
+			...result
+		});
 	} catch (error: any) {
-		res.status(400).json({ error: error.message });
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
     

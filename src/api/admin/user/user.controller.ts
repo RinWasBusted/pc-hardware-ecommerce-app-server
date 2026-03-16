@@ -32,7 +32,7 @@ export const GetUsersController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -44,7 +44,7 @@ export const GetUserDetailController = async (req: Request, res: Response) => {
 		if (Number.isNaN(userId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID người dùng không hợp lệ',
+				message: 'ID người dùng không hợp lệ',
 			});
 		}
 
@@ -57,7 +57,7 @@ export const GetUserDetailController = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
@@ -70,14 +70,14 @@ export const UpdateUserStatusController = async (req: Request, res: Response) =>
 		if (Number.isNaN(userId)) {
 			return res.status(400).json({
 				success: false,
-				error: 'ID người dùng không hợp lệ',
+				message: 'ID người dùng không hợp lệ',
 			});
 		}
 
 		if (typeof is_active !== 'boolean') {
 			return res.status(400).json({
 				success: false,
-				error: 'Trường is_active là bắt buộc và phải là boolean',
+				message: 'Trường is_active là bắt buộc và phải là boolean',
 			});
 		}
 
@@ -91,7 +91,7 @@ export const UpdateUserStatusController = async (req: Request, res: Response) =>
 	} catch (error: any) {
 		return res.status(400).json({
 			success: false,
-			error: error.message,
+			message: error.message,
 		});
 	}
 };
