@@ -247,15 +247,9 @@ export const refreshAccessToken = async (refreshToken: string) => {
 		};
 
 		const newAccessToken = generateAccessToken(tokenPayload);
-		const newRefreshToken = generateRefreshToken(tokenPayload);
-
-		// Remove old refresh token and add new one
-		userTokens.delete(refreshToken);
-		userTokens.add(newRefreshToken);
 
 		return {
-			access_token: newAccessToken,
-			refresh_token: newRefreshToken
+			access_token: newAccessToken
 		};
 	} catch (error: any) {
 		throw new Error('Invalid or expired refresh token');

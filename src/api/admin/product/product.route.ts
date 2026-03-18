@@ -67,7 +67,7 @@ router.get('/', getAdminProducts);
  * /admin/products:
  *   post:
  *     summary: Tạo sản phẩm mới
- *     description: Tạo sản phẩm mới kèm danh sách biến thể. Chỉ admin.
+ *     description: Tạo sản phẩm mới (chưa tạo biến thể). Chỉ admin.
  *     tags:
  *       - Admin Products
  *     security:
@@ -83,7 +83,6 @@ router.get('/', getAdminProducts);
  *               - name
  *               - category_id
  *               - brand_id
- *               - variants
  *             properties:
  *               sku:
  *                 type: string
@@ -108,24 +107,12 @@ router.get('/', getAdminProducts);
  *                 type: string
  *                 enum: [available, out_of_stock, discontinued]
  *                 example: "available"
- *               variants:
- *                 description: JSON string of variants array (without images)
- *                 type: string
- *                 example: '[{"sku":"PRD-001-BLK","version":"16GB-512GB","color":"Black","color_hex":"#000000","price":25990000,"compare_at_price":27990000,"stock":10,"is_active":true}]'
  *               product_images:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
  *                 description: Up to 8 product images
- *               variants[0][variant_image]:
- *                 type: string
- *                 format: binary
- *                 description: Variant image for first variant (repeat for each index). You can also send files with field name variant_images in the same order as variants.
- *               variants[1][variant_image]:
- *                 type: string
- *                 format: binary
- *                 description: Variant image for second variant (repeat for each index)
  *     responses:
  *       201:
  *         description: Tạo sản phẩm thành công
