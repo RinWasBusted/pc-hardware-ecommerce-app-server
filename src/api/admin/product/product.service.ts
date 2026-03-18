@@ -87,9 +87,7 @@ export const createProduct = async (
     brand_id: number,
     specifications: object | undefined,
     status: ProductStatus | undefined,
-    variants: any[],
     productImagePublicIds: string[],
-    variantImagePublicIds: string[],
 ) => {
 
     const existingSlug = await prisma.products.findUnique({
@@ -128,10 +126,6 @@ export const createProduct = async (
         throw new Error('Danh mục không tồn tại')
     }
 
-    if (variantImagePublicIds.length !== variants.length) {
-        throw new Error('Số lượng ảnh biến thể không khớp')
-    }
-
     let product
     try {
         product = await prisma.$transaction(async (tx) => {
@@ -145,36 +139,8 @@ export const createProduct = async (
                     brand_id,
                     ...(specifications? { specifications } : {}),
                     ...(status ? { status } : {}),
-                    product_variants: {
-                        create: variants.map(variant => ({
-                            sku: variant.sku,
-                            version: variant.version,
-                            color: variant.color,
-                            color_hex: variant.color_hex,
-                            price: variant.price,
-                            compare_at_price: variant.compare_at_price,
-                            stock: variant.stock,
-                            is_active: variant.is_active ?? true
-                        }))
-                    }
-                },
-                include: {
-                    product_variants: {
-                        select: {
-                            id: true,
-                            sku: true,
-                        }
-                    }
                 }
             })
-
-            if (createdProduct.product_variants.length !== variants.length) {
-                throw new Error('Tạo biến thể sản phẩm thất bại')
-            }
-
-            const variantIdBySku = new Map(
-                createdProduct.product_variants.map((variant) => [variant.sku, variant.id]),
-            )
 
             const productImagesData = productImagePublicIds.map((publicId, index) => ({
                 product_id: createdProduct.id,
@@ -183,27 +149,9 @@ export const createProduct = async (
                 sort_order: index,
             }))
 
-            const variantImagesData = variantImagePublicIds.map((publicId, index) => {
-                const variantSku = variants[index]?.sku
-                const variantId = variantSku ? variantIdBySku.get(variantSku) : undefined
-
-                if (!variantId) {
-                    throw new Error('Không tìm thấy biến thể để gán ảnh')
-                }
-
-                return {
-                    product_id: createdProduct.id,
-                    variant_id: variantId,
-                    image_url: publicId,
-                    sort_order: 0,
-                }
-            })
-
-            const imagesData = [...productImagesData, ...variantImagesData]
-
-            if (imagesData.length > 0) {
+            if (productImagesData.length > 0) {
                 await tx.productImages.createMany({
-                    data: imagesData,
+                    data: productImagesData,
                 })
             }
 

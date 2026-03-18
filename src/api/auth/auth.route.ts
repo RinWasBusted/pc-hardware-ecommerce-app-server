@@ -298,10 +298,6 @@ authRouter.post('/google', validate(googleLoginSchema), authController.googleLog
  *                   type: string
  *                   description: Access Token mới
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 refresh_token:
- *                   type: string
- *                   description: Refresh Token mới
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 message:
  *                   type: string
  *                   example: "Token đã được làm mới"

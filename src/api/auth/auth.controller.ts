@@ -101,7 +101,6 @@ export const refreshToken = async (req: Request, res: Response) => {
 		res.status(200).json({
 			success: true,
 			access_token: result.access_token,
-			refresh_token: result.refresh_token,
 			message: 'Token đã được làm mới'
 		});
 	} catch (error: any) {

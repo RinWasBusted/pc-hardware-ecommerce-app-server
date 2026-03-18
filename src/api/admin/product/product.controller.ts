@@ -69,7 +69,7 @@ export const getAdminProducts = async (req: Request, res: Response) => {
 
 export const createProduct = async (req: Request, res: Response) => {
     try {
-        const { sku, name, description, category_id, brand_id, specifications, status, variants } = req.body;
+        const { sku, name, description, category_id, brand_id, specifications, status } = req.body;
 
         const parseJsonField = (value: string, fieldName: string) => {
             try {
@@ -86,14 +86,10 @@ export const createProduct = async (req: Request, res: Response) => {
             ? (specifications.trim().length > 0 ? parseJsonField(specifications, 'specifications') : undefined)
             : specifications;
 
-        const parsedVariants = typeof variants === 'string'
-            ? (variants.trim().length > 0 ? parseJsonField(variants, 'variants') : undefined)
-            : variants;
-
-        if (!sku || !name || Number.isNaN(parsedCategoryId) || Number.isNaN(parsedBrandId) || !Array.isArray(parsedVariants) || parsedVariants.length === 0) {
+        if (!sku || !name || Number.isNaN(parsedCategoryId) || Number.isNaN(parsedBrandId)) {
             return res.status(400).json({
                 success: false,
-                message: 'Thiếu dữ liệu bắt buộc: sku, name, category_id, brand_id, variants'
+                message: 'Thiếu dữ liệu bắt buộc: sku, name, category_id, brand_id'
             });
         }
 
@@ -114,82 +110,17 @@ export const createProduct = async (req: Request, res: Response) => {
             });
         }
 
-        const variantImageFilesByIndex: Array<Express.Multer.File | undefined> = new Array(parsedVariants.length);
-        const sequentialVariantImageFiles: Express.Multer.File[] = [];
-        const invalidVariantImageFields: string[] = [];
-
-        for (const file of files) {
-            if (file.fieldname === 'variant_images' || file.fieldname === 'variant_image') {
-                sequentialVariantImageFiles.push(file);
-                continue;
-            }
-
-            const match = file.fieldname.match(/^variants\[(\d+)\]\[variant_image\]$/)
-                ?? file.fieldname.match(/^variants\[(\d+)\]\.variant_image$/)
-                ?? file.fieldname.match(/^variants\.(\d+)\.variant_image$/);
-
-            if (match) {
-                const index = Number(match[1]);
-                if (Number.isNaN(index) || index < 0 || index >= parsedVariants.length) {
-                    invalidVariantImageFields.push(file.fieldname);
-                    continue;
-                }
-
-                variantImageFilesByIndex[index] = file;
-            }
-        }
-
-        if (invalidVariantImageFields.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Ảnh biến thể không khớp với danh sách variants'
-            });
-        }
-
-        let sequentialIndex = 0;
-        for (let i = 0; i < parsedVariants.length; i += 1) {
-            if (!variantImageFilesByIndex[i] && sequentialIndex < sequentialVariantImageFiles.length) {
-                variantImageFilesByIndex[i] = sequentialVariantImageFiles[sequentialIndex];
-                sequentialIndex += 1;
-            }
-        }
-
-        if (sequentialIndex < sequentialVariantImageFiles.length) {
-            return res.status(400).json({
-                success: false,
-                message: 'Số lượng ảnh biến thể vượt quá số lượng variants'
-            });
-        }
-
-        if (variantImageFilesByIndex.some((file) => !file)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Mỗi biến thể phải có đúng 1 ảnh'
-            });
-        }
-
         const slug = toSlug(name)
 
-        const [productImageUploads, variantImageUploads] = await Promise.all([
-            Promise.all(
-                productImageFiles.map((file) =>
-                    uploadImageToCloudinary(
-                        file.buffer,
-                        file.originalname,
-                        'pc-hardware-ecommerce/products',
-                    ),
+        const productImageUploads = await Promise.all(
+            productImageFiles.map((file) =>
+                uploadImageToCloudinary(
+                    file.buffer,
+                    file.originalname,
+                    'pc-hardware-ecommerce/products',
                 ),
             ),
-            Promise.all(
-                variantImageFilesByIndex.map((file) =>
-                    uploadImageToCloudinary(
-                        file!.buffer,
-                        file!.originalname,
-                        'pc-hardware-ecommerce/products/variants',
-                    ),
-                ),
-            ),
-        ]);
+        );
 
         const response = await productService.createProduct(
             sku,
@@ -200,9 +131,7 @@ export const createProduct = async (req: Request, res: Response) => {
             parsedBrandId,
             parsedSpecifications,
             status,
-            parsedVariants,
             productImageUploads.map((item) => item.public_id),
-            variantImageUploads.map((item) => item.public_id),
         );
 
         return res.status(201).json({
