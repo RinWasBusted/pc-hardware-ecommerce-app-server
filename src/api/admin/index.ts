@@ -7,6 +7,7 @@ import variantRouter from './variant/variant.route.js';
 import productImageRouter from './product-image/product-image.route.js';
 import stockRouter from './stock/stock.route.js';
 import couponRouter from './coupon/coupon.route.js';
+import orderRouter from './order/order.route.js';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/variants', variantRouter);
 router.use('/product-images', productImageRouter);
 router.use('/stock', stockRouter);
 router.use('/coupons', couponRouter);
+router.use('/orders', orderRouter);
 
 export default router;
