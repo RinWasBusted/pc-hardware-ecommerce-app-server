@@ -58,9 +58,7 @@ export const sendVerificationEmail = async (email: string, token: string): Promi
   });
 };
 
-export const sendPasswordResetEmail = async (email: string, token: string): Promise<void> => {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
-  
+export const sendPasswordResetEmail = async (email: string, resetUrl: string): Promise<void> => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Đặt lại mật khẩu</h2>

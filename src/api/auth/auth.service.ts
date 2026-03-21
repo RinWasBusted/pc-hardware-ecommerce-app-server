@@ -256,7 +256,7 @@ export const refreshAccessToken = async (refreshToken: string) => {
 	}
 };
 
-export const forgotPassword = async (data: ForgotPasswordInput) => {
+export const forgotPassword = async (data: ForgotPasswordInput, is_mobile: boolean) => {
 	const user = await prisma.user.findUnique({
 		where: { email: data.email }
 	});
@@ -268,7 +268,15 @@ export const forgotPassword = async (data: ForgotPasswordInput) => {
 
 	// Email tồn tại - gửi reset email
 	const resetToken = generatePasswordResetToken(user.id, user.email);
-	await sendPasswordResetEmail(user.email, resetToken);
+	let resetUrl = '';
+	
+	if (is_mobile) {
+		resetUrl = `${process.env.MOBILE_APP_URL || 'myapp://'}auth/reset-password?token=${resetToken}`;
+	} else {
+		resetUrl = `${process.env.BASE_URL || 'http://localhost'}:${process.env.PORT || 3000}/reset-password?token=${resetToken}`;
+	}
+
+	await sendPasswordResetEmail(user.email, resetUrl);
 
 	return {
 		message: 'Email hướng dẫn đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'

@@ -119,7 +119,15 @@ export const refreshToken = async (req: Request, res: Response) => {
 export const forgotPassword = async (req: Request, res: Response) => {
 	try {
 		const data: ForgotPasswordInput = req.body;
-		const result = await authService.forgotPassword(data);
+
+		const user_agent = req.header('User-Agent') || 'Unknown';
+		let is_mobile = false;
+
+		if(user_agent.includes('Mobile') || user_agent.includes('Android') || user_agent.includes('iPhone')) {
+			is_mobile = true;
+		}
+
+		const result = await authService.forgotPassword(data, is_mobile);
 		res.status(200).json({
 			success: true,
 			...result
