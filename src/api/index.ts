@@ -8,6 +8,7 @@ import productRouter from './product/product.route.js';
 import cartRouter from './cart/cart.route.js';
 import couponRouter from './coupon/coupon.route.js';
 import orderRouter from './order/order.route.js';
+import paymentRouter from './payment/payment.route.js';
 import { Authenticate, Authorize } from '../middleware/auth.middleware.js';
 
 export const router = Router();
@@ -20,4 +21,5 @@ router.use('/brands', brandRouter);
 router.use('/products', productRouter);
 router.use('/cart', cartRouter);
 router.use('/orders', orderRouter);
+router.use('/payments', paymentRouter);
 router.use('/admin', Authenticate, Authorize('admin'), adminRouter);

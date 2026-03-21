@@ -33,7 +33,7 @@ export const sendEmail = async ({ to, subject, html }: EmailOptions): Promise<vo
 };
 
 export const sendVerificationEmail = async (email: string, token: string): Promise<void> => {
-  const verificationUrl = `${process.env.MOBILE_APP_URL || 'http://localhost:3000'}/auth/verify-email?token=${token}`;
+  const verificationUrl = `${process.env.BASE_URL || 'http://localhost'}:${process.env.PORT || 3000}/api/auth/verify-email?token=${token}`;
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
