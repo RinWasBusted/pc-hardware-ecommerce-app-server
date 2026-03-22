@@ -273,7 +273,7 @@ export const forgotPassword = async (data: ForgotPasswordInput, is_mobile: boole
 	if (is_mobile) {
 		resetUrl = `${process.env.MOBILE_APP_URL || 'myapp'}://auth/reset-password?token=${resetToken}`;
 	} else {
-		resetUrl = `${process.env.BASE_URL || 'http://localhost'}:${process.env.PORT || 3000}/reset-password?token=${resetToken}`;
+		resetUrl = `${process.env.BASE_URL || 'http://localhost'}:${process.env.PORT || 3000}/auth/reset-password?token=${resetToken}`;
 	}
 
 	await sendPasswordResetEmail(user.email, resetUrl);
