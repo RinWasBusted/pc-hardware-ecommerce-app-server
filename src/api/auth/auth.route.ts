@@ -6,7 +6,8 @@ import {
     googleLoginSchema,
     refreshTokenSchema,
     forgotPasswordSchema,
-    resetPasswordSchema
+    resetPasswordSchema,
+    resetPasswordUserSchema
 } from './auth.validation.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import { Authenticate } from '../../middleware/auth.middleware.js';
@@ -369,6 +370,29 @@ authRouter.post('/forgot-password', validate(forgotPasswordSchema), authControll
 
 /**
  * @swagger
+ * /auth/redirect-reset-password:
+ *   get:
+ *     summary: Redirect đến trang reset password trên FE
+ *     description: Xác thực token reset password từ email và redirect người dùng đến trang reset password trên Frontend để nhập mật khẩu mới
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token reset password từ email
+ *         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *     responses:
+ *       302:
+ *         description: Redirect thành công đến trang reset password trên FE với token trong query param
+ *       400:
+ *         description: Token không hợp lệ hoặc đã hết hạn
+ */
+authRouter.get('/redirect-reset-password', authController.redirectResetPassword);
+
+/**
+ * @swagger
  * /auth/reset-password:
  *   post:
  *     summary: Đặt lại mật khẩu mới
@@ -470,3 +494,63 @@ authRouter.post('/reset-password', validate(resetPasswordSchema), authController
  *                   example: "Token không được cung cấp"
  */
 authRouter.post('/logout', Authenticate, authController.logout);
+/**
+ * @swagger
+ * /auth/reset-password-user:
+ *   post:
+ *     summary: Đặt lại mật khẩu (người dùng đã authenticated)
+ *     description: Cho phép người dùng đã đăng nhập thay đổi mật khẩu của mình bằng cách cung cấp mật khẩu cũ và mật khẩu mới. Cần xác thực bằng Access Token (Authorization header).
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [old_password, new_password]
+ *             properties:
+ *               old_password:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: Mật khẩu cũ hiện tại
+ *                 example: "oldpassword123"
+ *               new_password:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: Mật khẩu mới (tối thiểu 8 ký tự)
+ *                 example: "newpassword123"
+ *     responses:
+ *       200:
+ *         description: Đặt lại mật khẩu thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Đặt lại mật khẩu thành công"
+ *       400:
+ *         description: Mật khẩu cũ không đúng hoặc mật khẩu mới trùng với cũ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Mật khẩu cũ không đúng"
+ *       401:
+ *         description: Không được xác thực
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Token không được cung cấp"
+ */
+authRouter.post('/reset-password-user', Authenticate, validate(resetPasswordUserSchema), authController.resetPasswordUser);

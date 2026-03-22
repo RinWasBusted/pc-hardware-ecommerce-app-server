@@ -58,17 +58,19 @@ export const sendVerificationEmail = async (email: string, token: string): Promi
   });
 };
 
-export const sendPasswordResetEmail = async (email: string, resetUrl: string): Promise<void> => {
+export const sendPasswordResetEmail = async (email: string, token: string): Promise<void> => {
+  const redirectUrl = `${process.env.BASE_URL || 'http://localhost'}:${process.env.PORT || 3000}/api/auth/redirect-reset-password?token=${token}`;
+  
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Đặt lại mật khẩu</h2>
       <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản tại PC Hardware Store.</p>
-      <p>Vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu:</p>
-      <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-        Đặt lại mật khẩu
+      <p>Vui lòng nhấn vào nút bên dưới để tiếp tục đặt lại mật khẩu:</p>
+      <a href="${redirectUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 4px; margin: 16px 0;">
+        Tiếp tục đặt lại mật khẩu
       </a>
       <p>Hoặc copy link sau vào trình duyệt:</p>
-      <p style="word-break: break-all; color: #666;">${resetUrl}</p>
+      <p style="word-break: break-all; color: #666;">${redirectUrl}</p>
       <p>Link này sẽ hết hạn sau 24 giờ.</p>
       <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;">
       <p style="color: #999; font-size: 12px;">Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này và mật khẩu của bạn sẽ không thay đổi.</p>

@@ -266,17 +266,10 @@ export const forgotPassword = async (data: ForgotPasswordInput, is_mobile: boole
 		throw new Error('Email không tồn tại trong hệ thống');
 	}
 
-	// Email tồn tại - gửi reset email
+	// Email tồn tại - gửi reset email với token
 	const resetToken = generatePasswordResetToken(user.id, user.email);
-	let resetUrl = '';
 	
-	if (is_mobile) {
-		resetUrl = `${process.env.MOBILE_APP_URL || 'myapp'}://auth/reset-password?token=${resetToken}`;
-	} else {
-		resetUrl = `${process.env.BASE_URL || 'http://localhost'}:${process.env.PORT || 3000}/auth/reset-password?token=${resetToken}`;
-	}
-
-	await sendPasswordResetEmail(user.email, resetUrl);
+	await sendPasswordResetEmail(user.email, resetToken);
 
 	return {
 		message: 'Email hướng dẫn đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
@@ -321,4 +314,65 @@ export const logout = async (userId: number, refreshToken: string) => {
 	}
 
 	return { message: 'Đăng xuất thành công' };
+};
+
+export const redirectResetPassword = async (token: string, is_mobile: boolean) => {
+	try {
+		const { userId, email } = verifyPasswordResetToken(token);
+
+		const user = await prisma.user.findUnique({
+			where: { id: userId, email }
+		});
+
+		if (!user) {
+			throw new Error('Người dùng không tồn tại');
+		}
+
+		let redirectUrl = '';
+		
+		if (is_mobile) {
+			redirectUrl = `${process.env.MOBILE_APP_URL || 'myapp://'}auth/reset-password?token=${token}`;
+		} else {
+			redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+		}
+
+		return {
+			message: 'Token xác thực hợp lệ',
+			redirectUrl,
+			token
+		};
+	} catch (error: any) {
+		throw new Error('Token không hợp lệ hoặc đã hết hạn');
+	}
+};
+
+export const resetPasswordUser = async (userId: number, oldPassword: string, newPassword: string) => {
+	const user = await prisma.user.findUnique({
+		where: { id: userId }
+	});
+
+	if (!user) {
+		throw new Error('Người dùng không tồn tại');
+	}
+
+	const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+	if (!isPasswordValid) {
+		throw new Error('Mật khẩu cũ không đúng');
+	}
+
+	if (oldPassword === newPassword) {
+		throw new Error('Mật khẩu mới không được trùng với mật khẩu cũ');
+	}
+
+	const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+	await prisma.user.update({
+		where: { id: userId },
+		data: { password: hashedPassword }
+	});
+
+	// Invalidate all refresh tokens for this user
+	refreshTokenStore.delete(userId);
+
+	return { message: 'Đặt lại mật khẩu thành công' };
 };
