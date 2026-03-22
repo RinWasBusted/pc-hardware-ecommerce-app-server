@@ -38,6 +38,11 @@ export const resetPasswordSchema = z.object({
   new_password: z.string().min(8, 'Mật khẩu mới phải có ít nhất 8 ký tự')
 });
 
+export const resetPasswordUserSchema = z.object({
+  old_password: z.string().min(1, 'Mật khẩu cũ không được để trống'),
+  new_password: z.string().min(8, 'Mật khẩu mới phải có ít nhất 8 ký tự')
+});
+
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, 'Token không được để trống')
 });
@@ -48,4 +53,5 @@ export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ResetPasswordUserInput = z.infer<typeof resetPasswordUserSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;

@@ -180,4 +180,56 @@ export const logout = async (req: Request, res: Response) => {
 		});
 	}
 };
+
+export const redirectResetPassword = async (req: Request, res: Response) => {
+	const { token } = req.query;
+	if (!token || typeof token !== 'string') {
+		return res.status(400).json({
+			success: false,
+			message: 'Token không hợp lệ'
+		});
+	}
+
+	const user_agent = req.header('User-Agent') || 'Unknown';
+	const is_mobile = user_agent.includes('Mobile') || user_agent.includes('Android') || user_agent.includes('iPhone');
+
+	try {
+		const result = await authService.redirectResetPassword(token, is_mobile);
+		
+		res.redirect(result.redirectUrl);
+	} catch (error: any) {
+		let errorUrl = '';
+		if (is_mobile) {
+			errorUrl = `${process.env.MOBILE_APP_URL || 'myapp://'}auth/reset-password`;
+		} else {
+			errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password`;
+		}
+		res.redirect(`${errorUrl}?success=false&message=${encodeURIComponent(error.message)}`);
+	}
+};
+
+export const resetPasswordUser = async (req: Request, res: Response) => {
+	try {
+		const userId = (req as any).user.userId; // From auth middleware
+		const { old_password, new_password } = req.body;
+
+		if (!old_password || !new_password) {
+			return res.status(400).json({
+				success: false,
+				message: 'Mật khẩu cũ và mật khẩu mới không được để trống'
+			});
+		}
+
+		const result = await authService.resetPasswordUser(userId, old_password, new_password);
+		res.status(200).json({
+			success: true,
+			...result
+		});
+	} catch (error: any) {
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
+	}
+};
     
