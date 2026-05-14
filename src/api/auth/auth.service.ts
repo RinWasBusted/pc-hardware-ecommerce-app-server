@@ -6,11 +6,18 @@ import {
 	generateRefreshToken,
 	generateEmailVerificationToken,
 	generatePasswordResetToken,
+	getRefreshTokenTtlSeconds,
 	verifyRefreshToken,
 	verifyEmailVerificationToken,
 	verifyPasswordResetToken,
 	type TokenPayload
 } from '../../utils/jwt.js';
+import {
+	storeRefreshToken,
+	hasRefreshToken,
+	revokeRefreshToken,
+	revokeAllRefreshTokens
+} from '../../utils/redis.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js';
 import type {
 	RegisterInput,
@@ -22,8 +29,10 @@ import type {
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Store refresh tokens (in production, use Redis or database)
-const refreshTokenStore = new Map<number, Set<string>>();
+const persistRefreshToken = async (userId: number, refreshToken: string) => {
+	const refreshTokenTtlSeconds = getRefreshTokenTtlSeconds(refreshToken);
+	await storeRefreshToken(userId, refreshToken, refreshTokenTtlSeconds);
+};
 
 export const register = async (data: RegisterInput) => {
 	// Check if user already exists
@@ -128,11 +137,7 @@ export const login = async (data: LoginInput) => {
 	const accessToken = generateAccessToken(tokenPayload);
 	const refreshToken = generateRefreshToken(tokenPayload);
 
-	// Store refresh token
-	if (!refreshTokenStore.has(user.id)) {
-		refreshTokenStore.set(user.id, new Set());
-	}
-	refreshTokenStore.get(user.id)!.add(refreshToken);
+	await persistRefreshToken(user.id, refreshToken);
 
 	return {
 		tokens: {
@@ -201,11 +206,7 @@ export const googleLogin = async (data: GoogleLoginInput) => {
 		const accessToken = generateAccessToken(tokenPayload);
 		const refreshToken = generateRefreshToken(tokenPayload);
 
-		// Store refresh token
-		if (!refreshTokenStore.has(user.id)) {
-			refreshTokenStore.set(user.id, new Set());
-		}
-		refreshTokenStore.get(user.id)!.add(refreshToken);
+		await persistRefreshToken(user.id, refreshToken);
 
 		return {
 			access_token: accessToken,
@@ -226,9 +227,8 @@ export const refreshAccessToken = async (refreshToken: string) => {
 	try {
 		const payload = verifyRefreshToken(refreshToken);
 
-		// Check if refresh token exists in store
-		const userTokens = refreshTokenStore.get(payload.userId);
-		if (!userTokens || !userTokens.has(refreshToken)) {
+		const tokenExists = await hasRefreshToken(refreshToken);
+		if (!tokenExists) {
 			throw new Error('Invalid refresh token');
 		}
 
@@ -295,8 +295,7 @@ export const resetPassword = async (data: ResetPasswordInput) => {
 			data: { password: hashedPassword }
 		});
 
-		// Invalidate all refresh tokens for this user
-		refreshTokenStore.delete(userId);
+		await revokeAllRefreshTokens(userId);
 
 		return { message: 'Đặt lại mật khẩu thành công' };
 	} catch (error: any) {
@@ -305,13 +304,7 @@ export const resetPassword = async (data: ResetPasswordInput) => {
 };
 
 export const logout = async (userId: number, refreshToken: string) => {
-	const userTokens = refreshTokenStore.get(userId);
-	if (userTokens) {
-		userTokens.delete(refreshToken);
-		if (userTokens.size === 0) {
-			refreshTokenStore.delete(userId);
-		}
-	}
+	await revokeRefreshToken(userId, refreshToken);
 
 	return { message: 'Đăng xuất thành công' };
 };
@@ -371,8 +364,7 @@ export const resetPasswordUser = async (userId: number, oldPassword: string, new
 		data: { password: hashedPassword }
 	});
 
-	// Invalidate all refresh tokens for this user
-	refreshTokenStore.delete(userId);
+	await revokeAllRefreshTokens(userId);
 
 	return { message: 'Đặt lại mật khẩu thành công' };
 };
