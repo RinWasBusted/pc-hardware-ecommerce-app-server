@@ -1,5 +1,5 @@
 import { prisma } from '../../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../../utils/cloudinary.js';
+import { getStorageUrl } from '../../../utils/storage.js';
 
 export type AdminReturnRequestListFilters = {
 	status?: string;
@@ -20,19 +20,19 @@ type VariantSummary = {
 };
 
 const getVariantImageUrl = (variant: VariantSummary) => {
-	const imagePublicId = variant.product_images[0]?.image_url
+	const imageKey = variant.product_images[0]?.image_url
 		?? variant.product.product_images[0]?.image_url
 		?? null;
 
-	return imagePublicId ? getCloudinaryImageUrl(imagePublicId) : null;
+	return imageKey ? getStorageUrl(imageKey) : null;
 };
 
-const mapVariantSummary = (variant: VariantSummary) => ({
+const mapVariantSummary = async (variant: VariantSummary) => ({
 	id: variant.id,
 	version: variant.version,
 	color: variant.color,
 	color_hex: variant.color_hex,
-	image_url: getVariantImageUrl(variant),
+	image_url: await getVariantImageUrl(variant),
 });
 
 export const GetAdminReturnRequests = async (filters: AdminReturnRequestListFilters) => {
@@ -100,7 +100,7 @@ export const GetAdminReturnRequests = async (filters: AdminReturnRequestListFilt
 		},
 	});
 
-	return requests.map((request) => ({
+	return Promise.all(requests.map(async (request) => ({
 		id: request.id,
 		order_id: request.order_id,
 		user: request.user,
@@ -109,14 +109,14 @@ export const GetAdminReturnRequests = async (filters: AdminReturnRequestListFilt
 		admin_note: request.admin_note,
 		refund_amount: Number(request.refund_amount),
 		created_at: request.created_at,
-		return_items: request.return_items.map((item) => ({
+		return_items: await Promise.all(request.return_items.map(async (item) => ({
 			id: item.id,
 			name: item.order_item.product_variant.product.name,
 			slug: item.order_item.product_variant.product.slug,
-			variant: mapVariantSummary(item.order_item.product_variant),
+			variant: await mapVariantSummary(item.order_item.product_variant),
 			quantity: item.quantity,
-		})),
-	}));
+		}))),
+	})));
 };
 
 export const GetAdminReturnRequestDetail = async (requestId: number) => {
@@ -214,20 +214,20 @@ export const GetAdminReturnRequestDetail = async (requestId: number) => {
 		admin_note: request.admin_note,
 		refund_amount: Number(request.refund_amount),
 		created_at: request.created_at,
-		return_items: request.return_items.map((item) => ({
+		return_items: await Promise.all(request.return_items.map(async (item) => ({
 			id: item.id,
 			product_id: item.order_item.product_variant.product.id,
 			name: item.order_item.product_variant.product.name,
 			slug: item.order_item.product_variant.product.slug,
-			variant: mapVariantSummary(item.order_item.product_variant),
+			variant: await mapVariantSummary(item.order_item.product_variant),
 			quantity: item.quantity,
 			condition: item.condition,
 			unit_price: Number(item.order_item.unit_price),
-		})),
-		images: request.return_images.map((image) => ({
+		}))),
+		images: await Promise.all(request.return_images.map(async (image) => ({
 			id: image.id,
-			image_url: getCloudinaryImageUrl(image.image_url),
-		})),
+			image_url: await getStorageUrl(image.image_url),
+		}))),
 		address: request.order.address,
 	};
 };

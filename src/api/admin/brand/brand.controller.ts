@@ -1,5 +1,4 @@
 import type { Request, Response } from 'express';
-import { getCloudinaryImageUrl, uploadImageToCloudinary } from '../../../utils/cloudinary.js';
 import { CreateBrand, DeleteBrand, UpdateBrand } from './brand.service.js';
 
 export const CreateBrandController = async (req: Request, res: Response) => {
@@ -20,23 +19,11 @@ export const CreateBrandController = async (req: Request, res: Response) => {
 			});
 		}
 
-		const uploadResult = await uploadImageToCloudinary(
-			req.file.buffer,
-			req.file.originalname,
-			'pc-hardware-ecommerce/brands',
-		);
-
-		const brand = await CreateBrand({
-			name: name.trim(),
-			logo_url: uploadResult.public_id,
-		});
+		const brand = await CreateBrand(name.trim(), req.file);
 
 		return res.status(201).json({
 			success: true,
-			data: {
-				...brand,
-				logo_url: brand.logo_url ? getCloudinaryImageUrl(brand.logo_url) : null,
-			},
+			data: brand,
 			message: 'Tạo thương hiệu thành công',
 		});
 	} catch (error: any) {
@@ -66,27 +53,11 @@ export const UpdateBrandController = async (req: Request, res: Response) => {
 			});
 		}
 
-		const updatePayload: { name: string; logo_url?: string } = {
-			name: name.trim(),
-		};
-
-		if (req.file) {
-			const uploadResult = await uploadImageToCloudinary(
-				req.file.buffer,
-				req.file.originalname,
-				'pc-hardware-ecommerce/brands',
-			);
-			updatePayload.logo_url = uploadResult.public_id;
-		}
-
-		const brand = await UpdateBrand(brandId, updatePayload);
+		const brand = await UpdateBrand(brandId, name.trim(), req.file);
 
 		return res.status(200).json({
 			success: true,
-			data: {
-				...brand,
-				logo_url: brand.logo_url ? getCloudinaryImageUrl(brand.logo_url) : null,
-			},
+			data: brand,
 			message: 'Cập nhật thương hiệu thành công',
 		});
 	} catch (error: any) {

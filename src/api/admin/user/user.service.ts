@@ -1,4 +1,5 @@
 import { prisma } from '../../../utils/prisma.js';
+import { getStorageUrl } from '../../../utils/storage.js';
 
 export const GetUsers = async (filters: {
 	role?: string;
@@ -40,7 +41,10 @@ export const GetUsers = async (filters: {
 		orderBy: { created_at: 'desc' },
 	});
 
-	return users;
+	return Promise.all(users.map(async (user) => ({
+		...user,
+		avatar_url: await getStorageUrl(user.avatar_url || ''),
+	})));
 };
 
 export const GetUserDetail = async (userId: number) => {
@@ -78,7 +82,10 @@ export const GetUserDetail = async (userId: number) => {
 		throw new Error('Người dùng không tồn tại');
 	}
 
-	return user;
+	return {
+		...user,
+		avatar_url: await getStorageUrl(user.avatar_url || ''),
+	};
 };
 
 export const UpdateUserStatus = async (userId: number, isActive: boolean) => {

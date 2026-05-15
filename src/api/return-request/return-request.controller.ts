@@ -1,5 +1,4 @@
 import type { Request, Response } from 'express';
-import { deleteImagesFromCloudinary, uploadImagesToCloudinary } from '../../utils/cloudinary.js';
 import {
 	CreateReturnRequest,
 	GetMyReturnRequestDetail,
@@ -31,8 +30,6 @@ const parseReturnItems = (value: unknown) => {
 };
 
 export const CreateReturnRequestController = async (req: Request, res: Response) => {
-	let uploadedPublicIds: string[] = [];
-
 	try {
 		const userId = Number(res.locals.userId);
 		const orderId = Number(req.body.order_id);
@@ -104,20 +101,13 @@ export const CreateReturnRequestController = async (req: Request, res: Response)
 		}
 
 		const imageFiles = Array.isArray(req.files) ? req.files : [];
-		if (imageFiles.length > 0) {
-			const uploadedImages = await uploadImagesToCloudinary(
-				imageFiles,
-				'pc-hardware-ecommerce/return-requests',
-			);
-			uploadedPublicIds = uploadedImages.map((image) => image.public_id);
-		}
 
 		const createdRequest = await CreateReturnRequest({
 			user_id: userId,
 			order_id: orderId,
 			reason,
 			items,
-			image_public_ids: uploadedPublicIds,
+			image_files: imageFiles,
 		});
 
 		return res.status(201).json({
@@ -126,10 +116,6 @@ export const CreateReturnRequestController = async (req: Request, res: Response)
 			message: 'Tạo yêu cầu trả hàng thành công',
 		});
 	} catch (error: any) {
-		if (uploadedPublicIds.length > 0) {
-			await deleteImagesFromCloudinary(uploadedPublicIds).catch(() => undefined);
-		}
-
 		return res.status(400).json({
 			success: false,
 			message: error.message,

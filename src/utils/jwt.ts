@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type JwtPayload } from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key-change-in-production';
@@ -29,6 +29,22 @@ export const verifyAccessToken = (token: string): TokenPayload => {
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
   return jwt.verify(token, JWT_REFRESH_SECRET) as TokenPayload;
+};
+
+export const getRefreshTokenTtlSeconds = (token: string): number => {
+  const decoded = jwt.decode(token) as JwtPayload | string | null;
+
+  if (!decoded || typeof decoded === 'string' || typeof decoded.exp !== 'number') {
+    throw new Error('Invalid refresh token expiration');
+  }
+
+  const ttlSeconds = decoded.exp - Math.floor(Date.now() / 1000);
+
+  if (ttlSeconds <= 0) {
+    throw new Error('Refresh token is already expired');
+  }
+
+  return ttlSeconds;
 };
 
 export const generateEmailVerificationToken = (userId: number, email: string): string => {

@@ -1,12 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../utils/prisma.js';
-import { deleteImageFromCloudinary, getCloudinaryImageUrl } from '../../utils/cloudinary.js';
-
-const toAvatarUrl = (avatarValue: string | null) => {
-  if (!avatarValue) return null;
-  if (avatarValue.startsWith('http://') || avatarValue.startsWith('https://')) return avatarValue;
-  return getCloudinaryImageUrl(avatarValue);
-};
+import { uploadToStorage, deleteFromStorage, getStorageUrl } from '../../utils/storage.js';
 
 export const GetUserProfile = async (userId: number) => {
   const user = await prisma.user.findUnique({
@@ -28,7 +22,7 @@ export const GetUserProfile = async (userId: number) => {
 
   return {
 	...user,
-	avatar_url: toAvatarUrl(user.avatar_url),
+	avatar_url: await getStorageUrl(user.avatar_url || ''),
   };
 };
 
@@ -60,54 +54,43 @@ export const UpdateUserProfile = async (
 
   return {
   ...updatedUser,
-  avatar_url: toAvatarUrl(updatedUser.avatar_url),
+  avatar_url: await getStorageUrl(updatedUser.avatar_url || ''),
   };
 };
 
-export const UpdateUserAvatar = async (userId: number, newAvatarPublicId: string | null) => {
-  const existingUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      avatar_url: true,
-    },
-  });
+export const UpdateUserAvatar = async (userId: number, imageFile: Express.Multer.File) => {
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        avatar_url: true,
+      },
+    });
 
-  if (!existingUser) {
-    throw new Error('Người dùng không tồn tại');
+    if (!existingUser) {
+      throw new Error('Người dùng không tồn tại');
+    }
+
+    const imageKey = await uploadToStorage(imageFile, 'user/avatars');
+
+    if ( existingUser.avatar_url ) {
+      await deleteFromStorage(existingUser.avatar_url);
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        avatar_url: imageKey,
+      }
+    });
+
+    return true;
+  } catch (error: any) {
+    throw new Error('Lỗi khi xóa ảnh cũ:', error);
   }
-
-  if (
-    existingUser.avatar_url &&
-    existingUser.avatar_url !== newAvatarPublicId &&
-    !existingUser.avatar_url.startsWith('http://') &&
-    !existingUser.avatar_url.startsWith('https://')
-  ) {
-    await deleteImageFromCloudinary(existingUser.avatar_url);
-  }
-
-  const updatedUser = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      avatar_url: newAvatarPublicId,
-    },
-    select: {
-      id: true,
-      full_name: true,
-      email: true,
-      phone_number: true,
-      avatar_url: true,
-      setting: true,
-      role: true,
-    },
-  });
-
-  return {
-    ...updatedUser,
-    avatar_url: toAvatarUrl(updatedUser.avatar_url),
-  };
 };
-
+  
 export const ChangePassword = async (
   userId: number,
   oldPassword: string,

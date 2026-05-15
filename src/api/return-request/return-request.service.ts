@@ -1,5 +1,5 @@
 import prisma from '../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../utils/cloudinary.js';
+import { deleteFromStorage, getStorageUrl, uploadToStorage } from '../../utils/storage.js';
 
 export type ReturnItemCondition = 'good' | 'damaged' | 'wrong_item';
 
@@ -24,19 +24,19 @@ type VariantSummary = {
 };
 
 const getVariantImageUrl = (variant: VariantSummary) => {
-	const imagePublicId = variant.product_images[0]?.image_url
+	const imageKey = variant.product_images[0]?.image_url
 		?? variant.product.product_images[0]?.image_url
 		?? null;
 
-	return imagePublicId ? getCloudinaryImageUrl(imagePublicId) : null;
+	return imageKey ? getStorageUrl(imageKey) : null;
 };
 
-const mapVariantSummary = (variant: VariantSummary) => ({
+const mapVariantSummary = async (variant: VariantSummary) => ({
 	id: variant.id,
 	version: variant.version,
 	color: variant.color,
 	color_hex: variant.color_hex,
-	image_url: getVariantImageUrl(variant),
+	image_url: await getVariantImageUrl(variant),
 });
 
 export const CreateReturnRequest = async (data: {
@@ -44,150 +44,167 @@ export const CreateReturnRequest = async (data: {
 	order_id: number;
 	reason: string;
 	items: CreateReturnRequestItemInput[];
-	image_public_ids: string[];
+	image_files: Express.Multer.File[];
 }) => {
 	if (data.items.length === 0) {
 		throw new Error('items không hợp lệ');
 	}
 
-	return prisma.$transaction(async (tx) => {
-		const order = await tx.orders.findFirst({
-			where: {
-				id: data.order_id,
-				user_id: data.user_id,
-			},
-			select: {
-				id: true,
-				order_status: true,
-			},
-		});
+	const uploadedImageKeys: string[] = [];
 
-		if (!order) {
-			throw new Error('Đơn hàng không tồn tại');
+	try {
+		for (const imageFile of data.image_files) {
+			const imageKey = await uploadToStorage(imageFile, 'return-requests');
+			uploadedImageKeys.push(imageKey);
 		}
 
-		if (order.order_status !== 'delivered') {
-			throw new Error('Chỉ có thể tạo yêu cầu trả hàng cho đơn hàng đã giao');
-		}
-
-		const orderItemIds = data.items.map((item) => item.order_item_id);
-		const uniqueIds = new Set<number>();
-
-		for (const orderItemId of orderItemIds) {
-			if (uniqueIds.has(orderItemId)) {
-				throw new Error('Không được gửi trùng order_item_id trong cùng một yêu cầu');
-			}
-			uniqueIds.add(orderItemId);
-		}
-
-		const orderItems = await tx.orderItems.findMany({
-			where: {
-				id: { in: orderItemIds },
-				order_id: data.order_id,
-			},
-			select: {
-				id: true,
-				quantity: true,
-				unit_price: true,
-			},
-		});
-
-		if (orderItems.length !== orderItemIds.length) {
-			throw new Error('Có sản phẩm không thuộc đơn hàng này');
-		}
-
-		const existingReturnItems = await tx.returnItems.findMany({
-			where: {
-				order_item_id: { in: orderItemIds },
-				return_request: {
-					is: {
-						order_id: data.order_id,
-					},
+		return await prisma.$transaction(async (tx) => {
+			const order = await tx.orders.findFirst({
+				where: {
+					id: data.order_id,
+					user_id: data.user_id,
 				},
-			},
-			select: {
-				order_item_id: true,
-				quantity: true,
-				return_request: {
-					select: {
-						status: true,
-					},
+				select: {
+					id: true,
+					order_status: true,
 				},
-			},
-		});
+			});
 
-		const requestedQuantityMap = new Map<number, number>();
-		for (const existingItem of existingReturnItems) {
-			if (existingItem.return_request.status === 'rejected') {
-				continue;
+			if (!order) {
+				throw new Error('Đơn hàng không tồn tại');
 			}
 
-			const current = requestedQuantityMap.get(existingItem.order_item_id) ?? 0;
-			requestedQuantityMap.set(existingItem.order_item_id, current + existingItem.quantity);
-		}
+			if (order.order_status !== 'delivered') {
+				throw new Error('Chỉ có thể tạo yêu cầu trả hàng cho đơn hàng đã giao');
+			}
 
-		const orderItemMap = new Map(orderItems.map((item) => [item.id, item]));
-		let refundAmount = 0;
+			const orderItemIds = data.items.map((item) => item.order_item_id);
+			const uniqueIds = new Set<number>();
 
-		for (const item of data.items) {
-			const orderItem = orderItemMap.get(item.order_item_id);
-			if (!orderItem) {
+			for (const orderItemId of orderItemIds) {
+				if (uniqueIds.has(orderItemId)) {
+					throw new Error('Không được gửi trùng order_item_id trong cùng một yêu cầu');
+				}
+				uniqueIds.add(orderItemId);
+			}
+
+			const orderItems = await tx.orderItems.findMany({
+				where: {
+					id: { in: orderItemIds },
+					order_id: data.order_id,
+				},
+				select: {
+					id: true,
+					quantity: true,
+					unit_price: true,
+				},
+			});
+
+			if (orderItems.length !== orderItemIds.length) {
 				throw new Error('Có sản phẩm không thuộc đơn hàng này');
 			}
 
-			const alreadyRequested = requestedQuantityMap.get(item.order_item_id) ?? 0;
-			if (alreadyRequested + item.quantity > orderItem.quantity) {
-				throw new Error('Số lượng trả vượt quá số lượng đã mua');
+			const existingReturnItems = await tx.returnItems.findMany({
+				where: {
+					order_item_id: { in: orderItemIds },
+					return_request: {
+						is: {
+							order_id: data.order_id,
+						},
+					},
+				},
+				select: {
+					order_item_id: true,
+					quantity: true,
+					return_request: {
+						select: {
+							status: true,
+						},
+					},
+				},
+			});
+
+			const requestedQuantityMap = new Map<number, number>();
+			for (const existingItem of existingReturnItems) {
+				if (existingItem.return_request.status === 'rejected') {
+					continue;
+				}
+
+				const current = requestedQuantityMap.get(existingItem.order_item_id) ?? 0;
+				requestedQuantityMap.set(existingItem.order_item_id, current + existingItem.quantity);
 			}
 
-			const unitPrice = Number(orderItem.unit_price);
-			if (Number.isNaN(unitPrice)) {
-				throw new Error('Giá sản phẩm không hợp lệ');
+			const orderItemMap = new Map(orderItems.map((item) => [item.id, item]));
+			let refundAmount = 0;
+
+			for (const item of data.items) {
+				const orderItem = orderItemMap.get(item.order_item_id);
+				if (!orderItem) {
+					throw new Error('Có sản phẩm không thuộc đơn hàng này');
+				}
+
+				const alreadyRequested = requestedQuantityMap.get(item.order_item_id) ?? 0;
+				if (alreadyRequested + item.quantity > orderItem.quantity) {
+					throw new Error('Số lượng trả vượt quá số lượng đã mua');
+				}
+
+				const unitPrice = Number(orderItem.unit_price);
+				if (Number.isNaN(unitPrice)) {
+					throw new Error('Giá sản phẩm không hợp lệ');
+				}
+
+				refundAmount += unitPrice * item.quantity;
 			}
 
-			refundAmount += unitPrice * item.quantity;
-		}
+			const returnRequest = await tx.returnRequests.create({
+				data: {
+					order_id: data.order_id,
+					user_id: data.user_id,
+					reason: data.reason,
+					refund_amount: refundAmount,
+				},
+				select: {
+					id: true,
+					status: true,
+					refund_amount: true,
+					created_at: true,
+				},
+			});
 
-		const returnRequest = await tx.returnRequests.create({
-			data: {
-				order_id: data.order_id,
-				user_id: data.user_id,
-				reason: data.reason,
-				refund_amount: refundAmount,
-			},
-			select: {
-				id: true,
-				status: true,
-				refund_amount: true,
-				created_at: true,
-			},
-		});
-
-		await tx.returnItems.createMany({
-			data: data.items.map((item) => ({
-				return_request_id: returnRequest.id,
-				order_item_id: item.order_item_id,
-				quantity: item.quantity,
-				condition: item.condition,
-			})),
-		});
-
-		if (data.image_public_ids.length > 0) {
-			await tx.returnImages.createMany({
-				data: data.image_public_ids.map((publicId) => ({
+			await tx.returnItems.createMany({
+				data: data.items.map((item) => ({
 					return_request_id: returnRequest.id,
-					image_url: publicId,
+					order_item_id: item.order_item_id,
+					quantity: item.quantity,
+					condition: item.condition,
 				})),
 			});
+
+			if (uploadedImageKeys.length > 0) {
+				await tx.returnImages.createMany({
+					data: uploadedImageKeys.map((imageKey) => ({
+						return_request_id: returnRequest.id,
+						image_url: imageKey,
+					})),
+				});
+			}
+
+			return {
+				id: returnRequest.id,
+				status: returnRequest.status,
+				refund_amount: Number(returnRequest.refund_amount),
+				created_at: returnRequest.created_at,
+			};
+		});
+	} catch (error) {
+		if (uploadedImageKeys.length > 0) {
+			await Promise.all(
+				uploadedImageKeys.map((imageKey) => deleteFromStorage(imageKey).catch(() => undefined)),
+			);
 		}
 
-		return {
-			id: returnRequest.id,
-			status: returnRequest.status,
-			refund_amount: Number(returnRequest.refund_amount),
-			created_at: returnRequest.created_at,
-		};
-	});
+		throw error;
+	}
 };
 
 export const GetMyReturnRequests = async (userId: number) => {
@@ -240,21 +257,21 @@ export const GetMyReturnRequests = async (userId: number) => {
 		},
 	});
 
-	return requests.map((request) => ({
+	return Promise.all(requests.map(async (request) => ({
 		id: request.id,
 		reason: request.reason,
 		status: request.status,
 		admin_note: request.admin_note,
 		refund_amount: Number(request.refund_amount),
 		created_at: request.created_at,
-		return_items: request.return_items.map((item) => ({
+		return_items: await Promise.all(request.return_items.map(async (item) => ({
 			id: item.id,
 			name: item.order_item.product_variant.product.name,
 			slug: item.order_item.product_variant.product.slug,
-			variant: mapVariantSummary(item.order_item.product_variant),
+			variant: await mapVariantSummary(item.order_item.product_variant),
 			quantity: item.quantity,
-		})),
-	}));
+		}))),
+	})));
 };
 
 export const GetMyReturnRequestDetail = async (userId: number, requestId: number) => {
@@ -344,20 +361,20 @@ export const GetMyReturnRequestDetail = async (userId: number, requestId: number
 		admin_note: request.admin_note,
 		refund_amount: Number(request.refund_amount),
 		created_at: request.created_at,
-		return_items: request.return_items.map((item) => ({
+		return_items: await Promise.all(request.return_items.map(async (item) => ({
 			id: item.id,
 			product_id: item.order_item.product_variant.product.id,
 			name: item.order_item.product_variant.product.name,
 			slug: item.order_item.product_variant.product.slug,
-			variant: mapVariantSummary(item.order_item.product_variant),
+			variant: await mapVariantSummary(item.order_item.product_variant),
 			quantity: item.quantity,
 			condition: item.condition,
 			unit_price: Number(item.order_item.unit_price),
-		})),
-		images: request.return_images.map((image) => ({
+		}))),
+		images: await Promise.all(request.return_images.map(async (image) => ({
 			id: image.id,
-			image_url: getCloudinaryImageUrl(image.image_url),
-		})),
+			image_url: await getStorageUrl(image.image_url),
+		}))),
 		address: request.order.address,
 	};
 };

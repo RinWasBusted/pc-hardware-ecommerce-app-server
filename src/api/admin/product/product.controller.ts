@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 import { ProductStatus } from '@prisma/client';
-import { deleteImageFromCloudinary, uploadImageToCloudinary, uploadImagesToCloudinary } from '../../../utils/cloudinary.js';
 import * as productService from './product.service.js';
 import toSlug from '../../../utils/slug.js';
 
@@ -112,16 +111,6 @@ export const createProduct = async (req: Request, res: Response) => {
 
         const slug = toSlug(name)
 
-        const productImageUploads = await Promise.all(
-            productImageFiles.map((file) =>
-                uploadImageToCloudinary(
-                    file.buffer,
-                    file.originalname,
-                    'pc-hardware-ecommerce/products',
-                ),
-            ),
-        );
-
         const response = await productService.createProduct(
             sku,
             name,
@@ -131,7 +120,7 @@ export const createProduct = async (req: Request, res: Response) => {
             parsedBrandId,
             parsedSpecifications,
             status,
-            productImageUploads.map((item) => item.public_id),
+            productImageFiles,
         );
 
         return res.status(201).json({
@@ -326,12 +315,6 @@ export const createVariantForProduct = async (req: Request, res: Response) => {
             });
         }
 
-        const uploadResult = await uploadImageToCloudinary(
-            req.file.buffer,
-            req.file.originalname,
-            'pc-hardware-ecommerce/products/variants',
-        );
-
         const variantPayload: {
             sku: string;
             version?: string;
@@ -353,7 +336,7 @@ export const createVariantForProduct = async (req: Request, res: Response) => {
         if (parsedCompareAtPrice !== undefined) variantPayload.compare_at_price = parsedCompareAtPrice;
         if (parsedIsActive !== undefined) variantPayload.is_active = parsedIsActive;
 
-        const response = await productService.createVariantForProduct(productId, variantPayload, uploadResult.public_id);
+        const response = await productService.createVariantForProduct(productId, variantPayload, req.file);
 
         return res.status(201).json({
             success: true,
@@ -402,14 +385,6 @@ export const updateVariant = async (req: Request, res: Response) => {
             });
         }
 
-        const variantImagePublicId = req.file
-            ? (await uploadImageToCloudinary(
-                req.file.buffer,
-                req.file.originalname,
-                'pc-hardware-ecommerce/products/variants',
-            )).public_id
-            : undefined;
-
         const variantPayload: {
             sku?: string;
             version?: string;
@@ -428,7 +403,7 @@ export const updateVariant = async (req: Request, res: Response) => {
         if (parsedCompareAtPrice !== undefined) variantPayload.compare_at_price = parsedCompareAtPrice;
         if (parsedStock !== undefined) variantPayload.stock = parsedStock;
 
-        const response = await productService.updateVariant(variantId, variantPayload, variantImagePublicId);
+        const response = await productService.updateVariant(variantId, variantPayload, req.file);
 
         return res.status(200).json({
             success: true,
@@ -552,24 +527,7 @@ export const uploadProductImages = async (req: Request, res: Response) => {
             });
         }
 
-        const remainingSlots = await productService.getProductImageRemainingSlots(productId);
-
-        if (files.length > remainingSlots) {
-            return res.status(400).json({
-                success: false,
-                message: 'Mỗi sản phẩm chỉ được tối đa 8 ảnh'
-            });
-        }
-
-        const uploadResults = await uploadImagesToCloudinary(
-            files.map((file) => ({ buffer: file.buffer, originalname: file.originalname })),
-            'pc-hardware-ecommerce/products',
-        );
-
-        const response = await productService.addProductImages(
-            productId,
-            uploadResults.map((item) => item.public_id),
-        );
+        const response = await productService.addProductImages(productId, files);
 
         return res.status(201).json({
             success: true,
@@ -654,17 +612,7 @@ export const updateVariantImage = async (req: Request, res: Response) => {
             });
         }
 
-        const uploadResult = await uploadImageToCloudinary(
-            req.file.buffer,
-            req.file.originalname,
-            'pc-hardware-ecommerce/products/variants',
-        );
-
-        const response = await productService.updateVariantImage(variantId, uploadResult.public_id);
-
-        if (response?.old_public_id) {
-            await deleteImageFromCloudinary(response.old_public_id);
-        }
+        const response = await productService.updateVariantImage(variantId, req.file);
 
         return res.status(200).json({
             success: true,
