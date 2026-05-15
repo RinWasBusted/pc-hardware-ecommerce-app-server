@@ -45,6 +45,8 @@ async function deleteFromStorage (key: string) {
 }
 
 async function getStorageUrl(key: string) {
+    if(!key) return null;
+
     const command = new GetObjectCommand({
         Bucket: process.env.AWS_S3_BUCKET_NAME || '',
         Key: key,

@@ -1,14 +1,20 @@
 import { prisma } from '../../../utils/prisma.js';
-import { deleteImageFromCloudinary } from '../../../utils/cloudinary.js';
+import { deleteFromStorage, getStorageUrl, uploadToStorage } from '../../../utils/storage.js';
 
-type UpsertBrandInput = {
+type BrandRecord = {
+	id: number;
 	name: string;
-	logo_url?: string;
+	logo_url: string | null;
 };
 
-export const CreateBrand = async (data: UpsertBrandInput) => {
+const mapBrandResponse = async (brand: BrandRecord) => ({
+	...brand,
+	logo_url: brand.logo_url ? await getStorageUrl(brand.logo_url) : null,
+});
+
+export const CreateBrand = async (name: string, logoFile: Express.Multer.File) => {
 	const existing = await prisma.brands.findUnique({
-		where: { name: data.name },
+		where: { name },
 		select: { id: true },
 	});
 
@@ -16,22 +22,29 @@ export const CreateBrand = async (data: UpsertBrandInput) => {
 		throw new Error('Tên thương hiệu đã tồn tại');
 	}
 
-	const brand = await prisma.brands.create({
-		data: {
-			name: data.name,
-			logo_url: data.logo_url ?? null,
-		},
-		select: {
-			id: true,
-			name: true,
-			logo_url: true,
-		},
-	});
+	const uploadedLogoKey = await uploadToStorage(logoFile, 'pc-hardware-ecommerce/brands');
 
-	return brand;
+	try {
+		const brand = await prisma.brands.create({
+			data: {
+				name,
+				logo_url: uploadedLogoKey,
+			},
+			select: {
+				id: true,
+				name: true,
+				logo_url: true,
+			},
+		});
+
+		return mapBrandResponse(brand);
+	} catch (error) {
+		await deleteFromStorage(uploadedLogoKey).catch(() => undefined);
+		throw error;
+	}
 };
 
-export const UpdateBrand = async (brandId: number, data: UpsertBrandInput) => {
+export const UpdateBrand = async (brandId: number, name: string, logoFile?: Express.Multer.File) => {
 	const existing = await prisma.brands.findUnique({
 		where: { id: brandId },
 		select: { id: true, logo_url: true },
@@ -42,7 +55,7 @@ export const UpdateBrand = async (brandId: number, data: UpsertBrandInput) => {
 	}
 
 	const duplicate = await prisma.brands.findFirst({
-		where: { name: data.name, NOT: { id: brandId } },
+		where: { name, NOT: { id: brandId } },
 		select: { id: true },
 	});
 
@@ -50,24 +63,47 @@ export const UpdateBrand = async (brandId: number, data: UpsertBrandInput) => {
 		throw new Error('Tên thương hiệu đã tồn tại');
 	}
 
-	if (typeof data.logo_url === 'string' && existing.logo_url && existing.logo_url !== data.logo_url) {
-		await deleteImageFromCloudinary(existing.logo_url);
+	if (!logoFile) {
+		const brand = await prisma.brands.update({
+			where: { id: brandId },
+			data: {
+				name,
+			},
+			select: {
+				id: true,
+				name: true,
+				logo_url: true,
+			},
+		});
+
+		return mapBrandResponse(brand);
 	}
 
-	const brand = await prisma.brands.update({
-		where: { id: brandId },
-		data: {
-			name: data.name,
-			...(typeof data.logo_url === 'string' ? { logo_url: data.logo_url } : {}),
-		},
-		select: {
-			id: true,
-			name: true,
-			logo_url: true,
-		},
-	});
+	const uploadedLogoKey = await uploadToStorage(logoFile, 'pc-hardware-ecommerce/brands');
 
-	return brand;
+	try {
+		const brand = await prisma.brands.update({
+			where: { id: brandId },
+			data: {
+				name,
+				logo_url: uploadedLogoKey,
+			},
+			select: {
+				id: true,
+				name: true,
+				logo_url: true,
+			},
+		});
+
+		if (existing.logo_url && existing.logo_url !== uploadedLogoKey) {
+			await deleteFromStorage(existing.logo_url).catch(() => undefined);
+		}
+
+		return mapBrandResponse(brand);
+	} catch (error) {
+		await deleteFromStorage(uploadedLogoKey).catch(() => undefined);
+		throw error;
+	}
 };
 
 export const DeleteBrand = async (brandId: number) => {
@@ -80,13 +116,13 @@ export const DeleteBrand = async (brandId: number) => {
 		throw new Error('Thương hiệu không tồn tại');
 	}
 
-	if (existing.logo_url) {
-		await deleteImageFromCloudinary(existing.logo_url);
-	}
-
 	await prisma.brands.delete({
 		where: { id: brandId },
 	});
+
+	if (existing.logo_url) {
+		await deleteFromStorage(existing.logo_url).catch(() => undefined);
+	}
 
 	return { id: existing.id, name: existing.name };
 };

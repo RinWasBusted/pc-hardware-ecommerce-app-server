@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 import prisma from "../../../utils/prisma.js"
 import type { ProductStatus } from "../../../generated/prisma/index.js"
-import { deleteImageFromCloudinary, getCloudinaryImageUrl } from '../../../utils/cloudinary.js'
+import { deleteFromStorage, getStorageUrl, uploadToStorage } from '../../../utils/storage.js'
 
 export type AdminProductListFilters = {
     page: number;
@@ -14,7 +14,7 @@ export type AdminProductListFilters = {
     status?: ProductStatus;
 }
 
-const mapAdminProductCard = (product: {
+const mapAdminProductCard = async (product: {
     id: number;
     sku: string;
     name: string;
@@ -44,14 +44,43 @@ const mapAdminProductCard = (product: {
         brand: {
             ...product.brand,
             logo_url: product.brand.logo_url
-                ? getCloudinaryImageUrl(product.brand.logo_url)
+                ? await getStorageUrl(product.brand.logo_url)
                 : null,
         },
-        primary_image: primaryImage ? getCloudinaryImageUrl(primaryImage) : null,
+        primary_image: primaryImage ? await getStorageUrl(primaryImage) : null,
         price_min,
         price_max,
     };
 };
+
+const uploadFilesToStorage = async (files: Express.Multer.File[], folder: string) => {
+    const uploadedKeys: string[] = []
+
+    try {
+        for (const file of files) {
+            const imageKey = await uploadToStorage(file, folder)
+            uploadedKeys.push(imageKey)
+        }
+
+        return uploadedKeys
+    } catch (error) {
+        if (uploadedKeys.length > 0) {
+            await Promise.all(uploadedKeys.map((key) => deleteFromStorage(key).catch(() => undefined)))
+        }
+
+        throw error
+    }
+}
+
+const deleteStorageKeysBestEffort = async (keys: Array<string | null | undefined>) => {
+    const validKeys = Array.from(new Set(keys.filter((key): key is string => Boolean(key))))
+
+    if (validKeys.length === 0) {
+        return
+    }
+
+    await Promise.all(validKeys.map((key) => deleteFromStorage(key).catch(() => undefined)))
+}
 
 const mapVariantUniqueError = (error: any) => {
     const errorMessage = typeof error?.message === 'string' ? error.message : ''
@@ -87,8 +116,11 @@ export const createProduct = async (
     brand_id: number,
     specifications: object | undefined,
     status: ProductStatus | undefined,
-    productImagePublicIds: string[],
+    productImageFiles: Express.Multer.File[],
 ) => {
+    if (productImageFiles.length > 8) {
+        throw new Error('Mỗi sản phẩm chỉ được tối đa 8 ảnh')
+    }
 
     const existingSlug = await prisma.products.findUnique({
         where: { slug },
@@ -126,6 +158,8 @@ export const createProduct = async (
         throw new Error('Danh mục không tồn tại')
     }
 
+    const uploadedImageKeys = await uploadFilesToStorage(productImageFiles, 'products')
+
     let product
     try {
         product = await prisma.$transaction(async (tx) => {
@@ -142,9 +176,9 @@ export const createProduct = async (
                 }
             })
 
-            const productImagesData = productImagePublicIds.map((publicId, index) => ({
+            const productImagesData = uploadedImageKeys.map((imageKey, index) => ({
                 product_id: createdProduct.id,
-                image_url: publicId,
+                image_url: imageKey,
                 is_primary: index === 0,
                 sort_order: index,
             }))
@@ -158,6 +192,10 @@ export const createProduct = async (
             return createdProduct
         })
     } catch (error: any) {
+        if (uploadedImageKeys.length > 0) {
+            await Promise.all(uploadedImageKeys.map((key) => deleteFromStorage(key).catch(() => undefined)))
+        }
+
         const mappedError = mapVariantUniqueError(error)
         if (mappedError) {
             throw new Error(mappedError)
@@ -280,6 +318,9 @@ export const deleteProduct = async (productId: number) => {
         where: { id: productId },
         select: {
             id: true,
+            product_images: {
+                select: { image_url: true }
+            },
             _count: {
                 select: {
                     reviews: true,
@@ -321,12 +362,16 @@ export const deleteProduct = async (productId: number) => {
         throw new Error('Không thể xóa sản phẩm đang có đơn hàng, giỏ hàng hoặc đánh giá')
     }
 
+    const imageKeys = product.product_images.map((image) => image.image_url)
+
     await prisma.$transaction([
         prisma.productImages.deleteMany({ where: { product_id: productId } }),
         prisma.stockLogs.deleteMany({ where: { product_variant: { product_id: productId } } }),
         prisma.productVariants.deleteMany({ where: { product_id: productId } }),
         prisma.products.delete({ where: { id: productId } }),
     ])
+
+    await deleteStorageKeysBestEffort(imageKeys)
 
     return { id: productId }
 }
@@ -340,7 +385,7 @@ export const createVariantForProduct = async (productId: number, data: {
     compare_at_price?: number;
     stock: number;
     is_active?: boolean;
-}, variantImagePublicId: string) => {
+}, variantImageFile: Express.Multer.File) => {
     const existingProduct = await prisma.products.findUnique({
         where: { id: productId },
         select: { id: true }
@@ -349,6 +394,8 @@ export const createVariantForProduct = async (productId: number, data: {
     if (!existingProduct) {
         throw new Error('Sản phẩm không tồn tại')
     }
+
+    const [variantImageKey] = await uploadFilesToStorage([variantImageFile], 'products/variants')
 
     try {
         const createdVariant = await prisma.$transaction(async (tx) => {
@@ -370,7 +417,7 @@ export const createVariantForProduct = async (productId: number, data: {
                 data: {
                     product_id: productId,
                     variant_id: variant.id,
-                    image_url: variantImagePublicId,
+                    image_url: variantImageKey || '',
                     sort_order: 0,
                 }
             })
@@ -380,6 +427,8 @@ export const createVariantForProduct = async (productId: number, data: {
 
         return createdVariant
     } catch (error: any) {
+        await deleteFromStorage(variantImageKey || '').catch(() => undefined)
+
         const mappedError = mapVariantUniqueError(error)
         if (mappedError) {
             throw new Error(mappedError)
@@ -397,7 +446,7 @@ export const updateVariant = async (variantId: number, data: {
     price?: number;
     compare_at_price?: number;
     stock?: number;
-}, variantImagePublicId?: string) => {
+}, variantImageFile?: Express.Multer.File) => {
     const existingVariant = await prisma.productVariants.findUnique({
         where: { id: variantId },
         select: { id: true, product_id: true }
@@ -407,46 +456,64 @@ export const updateVariant = async (variantId: number, data: {
         throw new Error('Biến thể không tồn tại')
     }
 
-    try {
-        const updatedVariant = await prisma.productVariants.update({
-            where: { id: variantId },
-            data: {
-                ...(data.sku !== undefined ? { sku: data.sku } : {}),
-                ...(data.version !== undefined ? { version: data.version } : {}),
-                ...(data.color !== undefined ? { color: data.color } : {}),
-                ...(data.color_hex !== undefined ? { color_hex: data.color_hex } : {}),
-                ...(data.price !== undefined ? { price: data.price } : {}),
-                ...(data.compare_at_price !== undefined ? { compare_at_price: data.compare_at_price } : {}),
-                ...(data.stock !== undefined ? { stock: data.stock } : {}),
-            }
-        })
+    const [variantImageKey] = variantImageFile
+        ? await uploadFilesToStorage([variantImageFile], 'products/variants')
+        : []
 
-        if (variantImagePublicId) {
-            const existingImage = await prisma.productImages.findFirst({
-                where: { variant_id: variantId },
-                select: { id: true, image_url: true }
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            const updatedVariant = await tx.productVariants.update({
+                where: { id: variantId },
+                data: {
+                    ...(data.sku !== undefined ? { sku: data.sku } : {}),
+                    ...(data.version !== undefined ? { version: data.version } : {}),
+                    ...(data.color !== undefined ? { color: data.color } : {}),
+                    ...(data.color_hex !== undefined ? { color_hex: data.color_hex } : {}),
+                    ...(data.price !== undefined ? { price: data.price } : {}),
+                    ...(data.compare_at_price !== undefined ? { compare_at_price: data.compare_at_price } : {}),
+                    ...(data.stock !== undefined ? { stock: data.stock } : {}),
+                }
             })
 
-            if (existingImage) {
-                await prisma.productImages.update({
-                    where: { id: existingImage.id },
-                    data: { image_url: variantImagePublicId }
+            let oldImageKey: string | null = null
+
+            if (variantImageKey) {
+                const existingImage = await tx.productImages.findFirst({
+                    where: { variant_id: variantId },
+                    select: { id: true, image_url: true }
                 })
-                await deleteImageFromCloudinary(existingImage.image_url)
-            } else {
-                await prisma.productImages.create({
-                    data: {
-                        product_id: existingVariant.product_id,
-                        variant_id: variantId,
-                        image_url: variantImagePublicId,
-                        sort_order: 0,
-                    }
-                })
+
+                if (existingImage) {
+                    oldImageKey = existingImage.image_url
+                    await tx.productImages.update({
+                        where: { id: existingImage.id },
+                        data: { image_url: variantImageKey }
+                    })
+                } else {
+                    await tx.productImages.create({
+                        data: {
+                            product_id: existingVariant.product_id,
+                            variant_id: variantId,
+                            image_url: variantImageKey,
+                            sort_order: 0,
+                        }
+                    })
+                }
             }
+
+            return { updatedVariant, oldImageKey }
+        })
+
+        if (result.oldImageKey) {
+            await deleteStorageKeysBestEffort([result.oldImageKey])
         }
 
-        return updatedVariant
+        return result.updatedVariant
     } catch (error: any) {
+        if (variantImageKey) {
+            await deleteFromStorage(variantImageKey).catch(() => undefined)
+        }
+
         const mappedError = mapVariantUniqueError(error)
         if (mappedError) {
             throw new Error(mappedError)
@@ -461,6 +528,9 @@ export const deleteVariant = async (variantId: number) => {
         where: { id: variantId },
         select: {
             id: true,
+            product_images: {
+                select: { image_url: true }
+            },
             _count: {
                 select: {
                     cart_items: true,
@@ -479,11 +549,15 @@ export const deleteVariant = async (variantId: number) => {
         throw new Error('Không thể xóa biến thể đang có đơn hàng, giỏ hàng hoặc đánh giá')
     }
 
+    const imageKeys = variant.product_images.map((image) => image.image_url)
+
     await prisma.$transaction([
         prisma.productImages.deleteMany({ where: { variant_id: variantId } }),
         prisma.stockLogs.deleteMany({ where: { variant_id: variantId } }),
         prisma.productVariants.delete({ where: { id: variantId } }),
     ])
+
+    await deleteStorageKeysBestEffort(imageKeys)
 
     return { id: variantId }
 }
@@ -537,14 +611,14 @@ export const getProductVariants = async (productId: number) => {
         }
     })
 
-    return variants.map(({ product_images, ...variant }) => ({
+    return Promise.all(variants.map(async ({ product_images, ...variant }) => ({
         ...variant,
         price: Number(variant.price),
         compare_at_price: variant.compare_at_price ? Number(variant.compare_at_price) : null,
         variant_image: product_images[0]?.image_url
-            ? getCloudinaryImageUrl(product_images[0].image_url)
+            ? await getStorageUrl(product_images[0].image_url)
             : null,
-    }))
+    })))
 }
 
 export const getAdminProducts = async (filters: AdminProductListFilters) => {
@@ -621,7 +695,7 @@ export const getAdminProducts = async (filters: AdminProductListFilters) => {
         }),
     ])
 
-    const items = products.map(mapAdminProductCard)
+    const items = await Promise.all(products.map(mapAdminProductCard))
     const totalPages = Math.ceil(total / limit)
 
     return {
@@ -635,7 +709,7 @@ export const getAdminProducts = async (filters: AdminProductListFilters) => {
     }
 }
 
-export const addProductImages = async (productId: number, imagePublicIds: string[]) => {
+export const addProductImages = async (productId: number, imageFiles: Express.Multer.File[]) => {
     const product = await prisma.products.findUnique({
         where: { id: productId },
         select: { id: true }
@@ -649,7 +723,7 @@ export const addProductImages = async (productId: number, imagePublicIds: string
         where: { product_id: productId, variant_id: null }
     })
 
-    if (existingCount + imagePublicIds.length > 8) {
+    if (existingCount + imageFiles.length > 8) {
         throw new Error('Mỗi sản phẩm chỉ được tối đa 8 ảnh')
     }
 
@@ -666,15 +740,22 @@ export const addProductImages = async (productId: number, imagePublicIds: string
     const startSort = (maxSort._max.sort_order ?? -1) + 1
     const shouldSetPrimary = !existingPrimary
 
-    const imagesData = imagePublicIds.map((publicId, index) => ({
+    const uploadedImageKeys = await uploadFilesToStorage(imageFiles, 'products')
+
+    const imagesData = uploadedImageKeys.map((imageKey, index) => ({
         product_id: productId,
-        image_url: publicId,
+        image_url: imageKey,
         is_primary: shouldSetPrimary && index === 0,
         sort_order: startSort + index,
     }))
 
-    if (imagesData.length > 0) {
-        await prisma.productImages.createMany({ data: imagesData })
+    try {
+        if (imagesData.length > 0) {
+            await prisma.productImages.createMany({ data: imagesData })
+        }
+    } catch (error) {
+        await deleteStorageKeysBestEffort(uploadedImageKeys)
+        throw error
     }
 
     return { count: imagesData.length }
@@ -700,7 +781,7 @@ export const getProductImageRemainingSlots = async (productId: number) => {
 export const deleteProductImage = async (imageId: number) => {
     const image = await prisma.productImages.findUnique({
         where: { id: imageId },
-        select: { id: true, product_id: true, variant_id: true, is_primary: true }
+        select: { id: true, product_id: true, variant_id: true, is_primary: true, image_url: true }
     })
 
     if (!image) {
@@ -729,6 +810,8 @@ export const deleteProductImage = async (imageId: number) => {
             }
         }
     })
+
+    await deleteStorageKeysBestEffort([image.image_url])
 
     return { id: imageId }
 }
@@ -761,7 +844,7 @@ export const setProductImagePrimary = async (imageId: number) => {
     return { id: imageId }
 }
 
-export const updateVariantImage = async (variantId: number, imagePublicId: string) => {
+export const updateVariantImage = async (variantId: number, imageFile: Express.Multer.File) => {
     const variant = await prisma.productVariants.findUnique({
         where: { id: variantId },
         select: { id: true, product_id: true }
@@ -771,27 +854,44 @@ export const updateVariantImage = async (variantId: number, imagePublicId: strin
         throw new Error('Biến thể không tồn tại')
     }
 
-    const existingImage = await prisma.productImages.findFirst({
-        where: { variant_id: variantId },
-        orderBy: { id: 'asc' },
-        select: { id: true, image_url: true }
-    })
+    const [imageKey] = await uploadFilesToStorage([imageFile], 'products/variants')
 
-    if (existingImage) {
-        await prisma.productImages.update({
-            where: { id: existingImage.id },
-            data: { image_url: imagePublicId }
-        })
-        return { id: variantId, old_public_id: existingImage.image_url }
-    } else {
-        await prisma.productImages.create({
-            data: {
-                product_id: variant.product_id,
-                variant_id: variantId,
-                image_url: imagePublicId,
-                sort_order: 0,
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            const existingImage = await tx.productImages.findFirst({
+                where: { variant_id: variantId },
+                orderBy: { id: 'asc' },
+                select: { id: true, image_url: true }
+            })
+
+            if (existingImage) {
+                await tx.productImages.update({
+                    where: { id: existingImage.id },
+                    data: { image_url: imageKey || '' }
+                })
+
+                return { id: variantId, oldImageKey: existingImage.image_url }
             }
+
+            await tx.productImages.create({
+                data: {
+                    product_id: variant.product_id,
+                    variant_id: variantId,
+                    image_url: imageKey || '',
+                    sort_order: 0,
+                }
+            })
+
+            return { id: variantId, oldImageKey: null }
         })
-        return { id: variantId }
+
+        if (result.oldImageKey) {
+            await deleteStorageKeysBestEffort([result.oldImageKey])
+        }
+
+        return { id: result.id }
+    } catch (error) {
+        await deleteFromStorage(imageKey || '').catch(() => undefined)
+        throw error
     }
 }

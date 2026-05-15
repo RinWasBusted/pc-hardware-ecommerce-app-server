@@ -123,7 +123,7 @@ const router = Router();
  *                                 image_url:
  *                                   type: string
  *                                   nullable: true
- *                                   example: "https://res.cloudinary.com/demo/image/upload/sample.jpg"
+ *                                   example: "https://pc-hardware-bucket.s3.ap-southeast-1.amazonaws.com/return-requests/sample.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256"
  *                             quantity:
  *                               type: integer
  *                               example: 1
@@ -281,7 +281,7 @@ router.get('/', GetAdminReturnRequestsController);
  *                               image_url:
  *                                 type: string
  *                                 nullable: true
- *                                 example: "https://res.cloudinary.com/demo/image/upload/sample.jpg"
+ *                                 example: "https://pc-hardware-bucket.s3.ap-southeast-1.amazonaws.com/return-requests/sample.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256"
  *                           quantity:
  *                             type: integer
  *                             example: 1
@@ -303,7 +303,7 @@ router.get('/', GetAdminReturnRequestsController);
  *                             example: 1
  *                           image_url:
  *                             type: string
- *                             example: "https://res.cloudinary.com/demo/image/upload/sample.jpg"
+ *                             example: "https://pc-hardware-bucket.s3.ap-southeast-1.amazonaws.com/return-requests/sample.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256"
  *                     address:
  *                       type: object
  *                       properties:

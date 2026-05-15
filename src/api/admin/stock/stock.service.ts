@@ -1,5 +1,5 @@
 import { prisma } from '../../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../../utils/cloudinary.js';
+import { getStorageUrl } from '../../../utils/storage.js';
 
 export const getLowStockVariants = async (threshold: number) => {
 	const variants = await prisma.productVariants.findMany({
@@ -32,14 +32,14 @@ export const getLowStockVariants = async (threshold: number) => {
 		},
 	});
 
-	return variants.map(({ product_images, ...variant }) => ({
+	return Promise.all(variants.map(async ({ product_images, ...variant }) => ({
 		...variant,
 		price: Number(variant.price),
 		compare_at_price: variant.compare_at_price ? Number(variant.compare_at_price) : null,
 		variant_image: product_images[0]?.image_url
-			? getCloudinaryImageUrl(product_images[0].image_url)
+			? await getStorageUrl(product_images[0].image_url)
 			: null,
-	}));
+	})));
 };
 
 export const createStockInbound = async (entries: Array<{ variant_id: number; change_qty: number; note?: string }>, adminId: number) => {

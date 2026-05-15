@@ -1,5 +1,5 @@
 import { prisma } from '../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../utils/cloudinary.js';
+import { getStorageUrl } from '../../utils/storage.js';
 
 const ensureCart = async (userId: number) => {
 	const existing = await prisma.carts.findUnique({
@@ -16,7 +16,7 @@ const ensureCart = async (userId: number) => {
 };
 
 const mapCartItems = (cartItems: Array<any>) => {
-	return cartItems.map((item) => {
+	return cartItems.map(async (item) => {
 		const variant = item.product_variant;
 		const variantImage = variant.product_images?.[0]?.image_url
 			?? variant.product?.product_images?.[0]?.image_url
@@ -46,7 +46,7 @@ const mapCartItems = (cartItems: Array<any>) => {
 				stock: variant.stock,
 				is_active: variant.is_active,
 			},
-			image_url: variantImage ? getCloudinaryImageUrl(variantImage) : null,
+			image_url: variantImage ? await getStorageUrl(variantImage) : null,
 		};
 	});
 };

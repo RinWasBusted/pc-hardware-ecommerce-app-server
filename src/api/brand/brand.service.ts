@@ -1,5 +1,5 @@
 import { prisma } from '../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../utils/cloudinary.js';
+import { getStorageUrl } from '../../utils/storage.js';
 
 export const GetBrands = async () => {
 	const brands = await prisma.brands.findMany({
@@ -11,10 +11,10 @@ export const GetBrands = async () => {
 		orderBy: { name: 'asc' },
 	});
 
-	return brands.map((brand) => ({
+	return Promise.all(brands.map(async (brand) => ({
 		...brand,
-		logo_url: brand.logo_url ? getCloudinaryImageUrl(brand.logo_url) : null,
-	}));
+		logo_url: brand.logo_url ? await getStorageUrl(brand.logo_url) : null,
+	})));
 };
 
 export const GetBrandDetail = async (brandId: number) => {
@@ -33,6 +33,6 @@ export const GetBrandDetail = async (brandId: number) => {
 
 	return {
 		...brand,
-		logo_url: brand.logo_url ? getCloudinaryImageUrl(brand.logo_url) : null,
+		logo_url: brand.logo_url ? await getStorageUrl(brand.logo_url) : null,
 	};
 };

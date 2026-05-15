@@ -1,5 +1,5 @@
 import { prisma } from '../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../utils/cloudinary.js';
+import { getStorageUrl } from '../../utils/storage.js';
 
 export type OrderItemInput = {
 	variant_id: number;
@@ -41,8 +41,8 @@ const normalizeItems = (items: OrderItemInput[]) => {
 	}));
 };
 
-const mapOrderItems = (items: OrderItemRow[]) => {
-	return items.map((item) => {
+const mapOrderItems = async (items: OrderItemRow[]) => {
+	return Promise.all(items.map(async (item) => {
 		const variant = item.product_variant;
 		const variantImage = variant.product_images?.[0]?.image_url
 			?? variant.product?.product_images?.[0]?.image_url
@@ -66,9 +66,9 @@ const mapOrderItems = (items: OrderItemRow[]) => {
 				color: variant.color,
 				color_hex: variant.color_hex,
 			},
-			image_url: variantImage ? getCloudinaryImageUrl(variantImage) : null,
+			image_url: variantImage ? await getStorageUrl(variantImage) : null,
 		};
-	});
+	}));
 };
 
 export const CreateOrder = async (data: {
@@ -312,7 +312,7 @@ export const GetMyOrders = async (
 		},
 	});
 
-	return orders.map((order) => ({
+	return Promise.all(orders.map(async (order) => ({
 		id: order.id,
 		subtotal: Number(order.subtotal),
 		discount_amount: Number(order.discount_amount),
@@ -324,8 +324,8 @@ export const GetMyOrders = async (
 		note: order.note,
 		created_at: order.created_at,
 		updated_at: order.updated_at,
-		items: mapOrderItems(order.order_items as OrderItemRow[]),
-	}));
+		items: await mapOrderItems(order.order_items as OrderItemRow[]),
+	})));
 };
 
 export const GetOrderDetail = async (userId: number, orderId: number) => {
@@ -466,7 +466,7 @@ export const GetOrderDetail = async (userId: number, orderId: number) => {
 					: null,
 			}
 			: null,
-		items: mapOrderItems(order.order_items as OrderItemRow[]),
+		items: await mapOrderItems(order.order_items as OrderItemRow[]),
 		timeline,
 	};
 };

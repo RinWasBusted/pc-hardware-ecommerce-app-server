@@ -1,5 +1,5 @@
 import { Prisma, prisma } from '../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../utils/cloudinary.js';
+import { getStorageUrl } from '../../utils/storage.js';
 
 export type ProductListFilters = {
 	page: number;
@@ -12,7 +12,7 @@ export type ProductListFilters = {
 	sort?: 'newest' | 'oldest';
 };
 
-const mapProductCard = (product: {
+const mapProductCard = async (product: {
 	id: number;
 	name: string;
 	slug: string;
@@ -40,10 +40,10 @@ const mapProductCard = (product: {
 		brand: {
 			...product.brand,
 			logo_url: product.brand.logo_url
-				? getCloudinaryImageUrl(product.brand.logo_url)
+				? await getStorageUrl(product.brand.logo_url)
 				: null,
 		},
-		primary_image: primaryImage ? getCloudinaryImageUrl(primaryImage) : null,
+		primary_image: primaryImage ? await getStorageUrl(primaryImage) : null,
 		price_min,
 		price_max,
 	};
@@ -126,7 +126,7 @@ export const GetProducts = async (filters: ProductListFilters) => {
 		}),
 	]);
 
-	const items = products.map(mapProductCard);
+	const items = await Promise.all(products.map(mapProductCard));
 	const totalPages = Math.ceil(total / limit);
 
 	return {
@@ -202,18 +202,23 @@ export const GetProductDetailBySlug = async (slug: string) => {
 	}
 
 	const variantImageMap = new Map<number, string>();
-	const productImages = product.product_images
-		.filter((image) => image.variant_id === null)
-		.map((image) => ({
-			id: image.id,
-			image_url: getCloudinaryImageUrl(image.image_url),
-			is_primary: image.is_primary,
-			sort_order: image.sort_order,
-		}));
+	const productImages = await Promise.all(
+		product.product_images
+			.filter((image) => image.variant_id === null)
+			.map(async (image) => ({
+				id: image.id,
+				image_url: await getStorageUrl(image.image_url),
+				is_primary: image.is_primary,
+				sort_order: image.sort_order,
+			})),
+	);
 
 	for (const image of product.product_images) {
 		if (image.variant_id !== null && !variantImageMap.has(image.variant_id)) {
-			variantImageMap.set(image.variant_id, getCloudinaryImageUrl(image.image_url));
+			const imageUrl = await getStorageUrl(image.image_url);
+			if (imageUrl) {
+				variantImageMap.set(image.variant_id, imageUrl);
+			}
 		}
 	}
 
@@ -238,7 +243,7 @@ export const GetProductDetailBySlug = async (slug: string) => {
 		brand: {
 			...product.brand,
 			logo_url: product.brand.logo_url
-				? getCloudinaryImageUrl(product.brand.logo_url)
+				? await getStorageUrl(product.brand.logo_url)
 				: null,
 		},
 		images: productImages,
@@ -285,5 +290,5 @@ export const GetProductsByCategory = async (categoryId: number, limit: number) =
 		},
 	});
 
-	return products.map(mapProductCard);
+	return Promise.all(products.map(mapProductCard));
 };

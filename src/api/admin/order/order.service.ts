@@ -1,5 +1,5 @@
 import { prisma } from '../../../utils/prisma.js';
-import { getCloudinaryImageUrl } from '../../../utils/cloudinary.js';
+import { getStorageUrl } from '../../../utils/storage.js';
 import { OrderStatus } from '@prisma/client';
 
 export type AdminOrderListFilters = {
@@ -34,7 +34,7 @@ type OrderItemRow = {
 };
 
 const mapOrderItems = (items: OrderItemRow[]) => {
-	return items.map((item) => {
+	return Promise.all(items.map(async (item) => {
 		const variant = item.product_variant;
 		const variantImage = variant.product_images?.[0]?.image_url
 			?? variant.product?.product_images?.[0]?.image_url
@@ -58,9 +58,9 @@ const mapOrderItems = (items: OrderItemRow[]) => {
 				color: variant.color,
 				color_hex: variant.color_hex,
 			},
-			image_url: variantImage ? getCloudinaryImageUrl(variantImage) : null,
+			image_url: variantImage ? await getStorageUrl(variantImage) : null,
 		};
-	});
+	}));
 };
 
 export const GetAdminOrders = async (filters: AdminOrderListFilters) => {
