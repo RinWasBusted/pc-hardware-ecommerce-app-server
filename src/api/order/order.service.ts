@@ -75,7 +75,7 @@ export const CreateOrder = async (data: {
 	user_id: number;
 	address_id: number;
 	coupon_id?: number;
-	payment_method: 'cod' | 'momo' | 'bank_transfer';
+	payment_method: 'cod' | 'bank_transfer';
 	note?: string;
 	items: OrderItemInput[];
 }) => {

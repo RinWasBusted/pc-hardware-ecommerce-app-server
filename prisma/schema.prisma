@@ -203,7 +203,6 @@ model CartItems {
 
 enum PaymentMethod {
   cod
-  momo
   bank_transfer
 }
 

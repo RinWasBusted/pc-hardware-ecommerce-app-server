@@ -1,4 +1,4 @@
-import Router from 'express';
+import { Router } from 'express';
 import { authRouter } from './auth/auth.route.js';
 import userRouter from './user/user.route.js';
 import adminRouter from './admin/index.js';
