@@ -277,7 +277,13 @@ export const UpdateAdminOrderStatus = async (
 	return prisma.$transaction(async (tx) => {
 		const order = await tx.orders.findUnique({
 			where: { id: orderId },
-			select: { id: true, order_status: true },
+			select: {
+				id: true,
+				order_status: true,
+				payment_method: true,
+				payment_status: true,
+				total: true,
+			},
 		});
 
 		if (!order) {
@@ -288,22 +294,71 @@ export const UpdateAdminOrderStatus = async (
 			throw new Error('Trạng thái đơn hàng không thay đổi');
 		}
 
-        const validStatuses = Object.values(OrderStatus);
-        if (!validStatuses.includes(newStatus as OrderStatus)) {
-            throw new Error('Trạng thái đơn hàng không hợp lệ');
-        }
+		const validStatuses = Object.values(OrderStatus);
+		if (!validStatuses.includes(newStatus as OrderStatus)) {
+			throw new Error('Trạng thái đơn hàng không hợp lệ');
+		}
+
+		const shouldAutoCompleteCodPayment = (
+			order.payment_method === 'cod'
+			&& newStatus === 'delivered'
+			&& order.payment_status === 'unpaid'
+		);
 
 		const updated = await tx.orders.update({
 			where: { id: order.id },
 			data: {
 				order_status: newStatus as OrderStatus,
+				...(shouldAutoCompleteCodPayment ? { payment_status: 'paid' } : {}),
 			},
 			select: {
 				id: true,
 				order_status: true,
+				payment_status: true,
 				updated_at: true,
 			},
 		});
+
+		if (shouldAutoCompleteCodPayment) {
+			const latestCodPayment = await tx.payments.findFirst({
+				where: {
+					order_id: order.id,
+					method: 'cod',
+				},
+				orderBy: {
+					created_at: 'desc',
+				},
+			});
+
+			const gatewayResponse = {
+				source: 'order_delivered_cod',
+				triggered_by_admin_id: adminId,
+				triggered_at: new Date().toISOString(),
+			};
+
+			if (!latestCodPayment) {
+				await tx.payments.create({
+					data: {
+						order_id: order.id,
+						method: 'cod',
+						amount: order.total,
+						payment_status: 'success',
+						paid_at: new Date(),
+						gateway_response: gatewayResponse,
+					},
+				});
+			} else if (latestCodPayment.payment_status !== 'success') {
+				await tx.payments.update({
+					where: { id: latestCodPayment.id },
+					data: {
+						amount: order.total,
+						payment_status: 'success',
+						paid_at: latestCodPayment.paid_at ?? new Date(),
+						gateway_response: gatewayResponse,
+					},
+				});
+			}
+		}
 
 		await tx.orderStatusLogs.create({
 			data: {

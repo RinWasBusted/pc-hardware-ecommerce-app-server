@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import {
 	ApproveAdminReturnRequestController,
-	CompleteAdminReturnRequestController,
 	GetAdminReturnRequestDetailController,
 	GetAdminReturnRequestsController,
 	MarkAdminReturnRequestReceivedController,
 	RejectAdminReturnRequestController,
+	RefundAdminReturnRequestController,
 } from './return-request.controller.js';
 
 const router = Router();
@@ -377,7 +377,7 @@ router.get('/:id', GetAdminReturnRequestDetailController);
  *     summary: Duyệt yêu cầu trả hàng
  *     description: |
  *       Duyệt yêu cầu trả hàng.
- *       API cập nhật `refund_amount` thực tế, `admin_note` (nếu có),
+ *       API tự động đặt `refund_amount = total` của đơn hàng gốc, cập nhật `admin_note` (nếu có),
  *       và chuyển trạng thái request từ `pending` sang `approved`.
  *     tags:
  *       - Admin Return Requests
@@ -395,19 +395,12 @@ router.get('/:id', GetAdminReturnRequestDetailController);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - refund_amount
  *             properties:
- *               refund_amount:
- *                 type: number
- *                 format: decimal
- *                 description: Số tiền hoàn thực tế được admin duyệt
- *                 example: 19990000
  *               admin_note:
  *                 type: string
  *                 nullable: true
  *                 description: Ghi chú duyệt của admin
- *                 example: "Đã kiểm tra, chấp nhận hoàn tiền một phần"
+ *                 example: "Đã kiểm tra, chấp nhận hoàn tiền"
  *     responses:
  *       200:
  *         description: Duyệt yêu cầu trả hàng thành công
@@ -432,11 +425,12 @@ router.get('/:id', GetAdminReturnRequestDetailController);
  *                     admin_note:
  *                       type: string
  *                       nullable: true
- *                       example: "Đã kiểm tra, chấp nhận hoàn tiền một phần"
+ *                       example: "Đã kiểm tra, chấp nhận hoàn tiền"
  *                     refund_amount:
  *                       type: number
  *                       format: decimal
- *                       example: 19990000
+ *                       description: Tự động lấy bằng tổng tiền của đơn hàng
+ *                       example: 25990000
  *                 message:
  *                   type: string
  *                   example: "Duyệt yêu cầu trả hàng thành công"
@@ -682,13 +676,13 @@ router.patch('/:id/received', MarkAdminReturnRequestReceivedController);
 
 /**
  * @swagger
- * /admin/return-requests/{id}/complete:
+ * /admin/return-requests/{id}/refund:
  *   patch:
- *     summary: Hoàn tất xử lý trả hàng
+ *     summary: Hoàn tiền cho đơn hàng trả hàng
  *     description: |
- *       Hoàn tất xử lý trả hàng.
+ *       Hoàn tiền cho đơn hàng liên quan đến yêu cầu trả hàng.
  *       API chuyển request từ `received` sang `completed`,
- *       cập nhật order liên quan sang `payment_status = refunded`, `order_status = failed`,
+ *       cập nhật order liên quan sang `payment_status = refunded`, `order_status = cancelled`,
  *       set `cancel_reason`, tạo `OrderStatusLogs` mới nếu cần,
  *       và cập nhật các payment thành `refunded` nếu đang ở trạng thái `success`.
  *     tags:
@@ -703,7 +697,7 @@ router.patch('/:id/received', MarkAdminReturnRequestReceivedController);
  *           type: integer
  *     responses:
  *       200:
- *         description: Hoàn tất xử lý trả hàng thành công
+ *         description: Hoàn tiền cho đơn hàng thành công
  *         content:
  *           application/json:
  *             schema:
@@ -727,16 +721,16 @@ router.patch('/:id/received', MarkAdminReturnRequestReceivedController);
  *                       example: 123
  *                     order_status:
  *                       type: string
- *                       example: failed
+ *                       example: cancelled
  *                     payment_status:
  *                       type: string
  *                       example: refunded
  *                     cancel_reason:
  *                       type: string
- *                       example: "Hoàn tất trả hàng/hoàn tiền cho yêu cầu #10"
+ *                       example: "Hoàn tiền cho yêu cầu trả hàng #10"
  *                 message:
  *                   type: string
- *                   example: "Hoàn tất xử lý trả hàng thành công"
+ *                   example: "Hoàn tiền cho đơn hàng thành công"
  *       400:
  *         description: ID không hợp lệ hoặc trạng thái không cho phép
  *         content:
@@ -749,7 +743,7 @@ router.patch('/:id/received', MarkAdminReturnRequestReceivedController);
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Chỉ có thể hoàn tất yêu cầu khi trạng thái là received"
+ *                   example: "Chỉ có thể hoàn tiền khi yêu cầu ở trạng thái received"
  *       401:
  *         description: Chưa đăng nhập hoặc token không hợp lệ
  *         content:
@@ -777,6 +771,6 @@ router.patch('/:id/received', MarkAdminReturnRequestReceivedController);
  *                   type: string
  *                   example: "Bạn không có quyền truy cập"
  */
-router.patch('/:id/complete', CompleteAdminReturnRequestController);
+router.patch('/:id/refund', RefundAdminReturnRequestController);
 
 export default router;

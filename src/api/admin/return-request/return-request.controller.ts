@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
 import {
 	ApproveAdminReturnRequest,
-	CompleteAdminReturnRequest,
 	GetAdminReturnRequestDetail,
 	GetAdminReturnRequests,
 	MarkAdminReturnRequestReceived,
 	RejectAdminReturnRequest,
+	RefundAdminReturnRequest,
 } from './return-request.service.js';
 
 const RETURN_STATUSES = new Set(['pending', 'approved', 'rejected', 'received', 'completed']);
@@ -68,8 +68,6 @@ export const ApproveAdminReturnRequestController = async (req: Request, res: Res
 	try {
 		const adminId = Number(res.locals.userId);
 		const requestId = Number(req.params.id);
-		const refundAmountRaw = req.body.refund_amount;
-		const refundAmount = Number(refundAmountRaw);
 		const adminNote = typeof req.body.admin_note === 'string' ? req.body.admin_note.trim() : undefined;
 
 		if (Number.isNaN(adminId)) {
@@ -86,14 +84,7 @@ export const ApproveAdminReturnRequestController = async (req: Request, res: Res
 			});
 		}
 
-		if (refundAmountRaw === undefined || refundAmountRaw === null || refundAmountRaw === '' || Number.isNaN(refundAmount)) {
-			return res.status(400).json({
-				success: false,
-				message: 'refund_amount là bắt buộc',
-			});
-		}
-
-		const updated = await ApproveAdminReturnRequest(requestId, adminId, refundAmount, adminNote);
+		const updated = await ApproveAdminReturnRequest(requestId, adminId, adminNote);
 
 		return res.status(200).json({
 			success: true,
@@ -184,7 +175,7 @@ export const MarkAdminReturnRequestReceivedController = async (req: Request, res
 	}
 };
 
-export const CompleteAdminReturnRequestController = async (req: Request, res: Response) => {
+export const RefundAdminReturnRequestController = async (req: Request, res: Response) => {
 	try {
 		const adminId = Number(res.locals.userId);
 		const requestId = Number(req.params.id);
@@ -203,12 +194,12 @@ export const CompleteAdminReturnRequestController = async (req: Request, res: Re
 			});
 		}
 
-		const updated = await CompleteAdminReturnRequest(requestId, adminId);
+		const updated = await RefundAdminReturnRequest(requestId, adminId);
 
 		return res.status(200).json({
 			success: true,
 			data: updated,
-			message: 'Hoàn tất xử lý trả hàng thành công',
+			message: 'Hoàn tiền cho đơn hàng thành công',
 		});
 	} catch (error: any) {
 		return res.status(400).json({

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { CancelOrder, ConfirmOrderReceived, CreateOrder, GetMyOrders, GetOrderDetail, type OrderItemInput } from './order.service.js';
 
-const PAYMENT_METHODS = new Set(['cod', 'momo', 'bank_transfer']);
+const PAYMENT_METHODS = new Set(['cod', 'bank_transfer']);
 const ORDER_STATUSES = new Set(['pending', 'confirmed', 'preparing', 'packed', 'shipping', 'delivered', 'failed', 'cancelled']);
 const PAYMENT_STATUSES = new Set(['unpaid', 'paid', 'refunded']);
 
@@ -79,7 +79,7 @@ export const CreateOrderController = async (req: Request, res: Response) => {
 			user_id: userId,
 			address_id: addressId,
 			...(couponId !== undefined ? { coupon_id: couponId } : {}),
-			payment_method: paymentMethod as 'cod' | 'momo' | 'bank_transfer',
+			payment_method: paymentMethod as 'cod' | 'bank_transfer',
 			...(note ? { note } : {}),
 			items,
 		});
