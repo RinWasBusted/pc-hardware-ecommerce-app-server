@@ -235,7 +235,6 @@ export const GetAdminReturnRequestDetail = async (requestId: number) => {
 export const ApproveAdminReturnRequest = async (
 	requestId: number,
 	adminId: number,
-	refundAmount: number,
 	adminNote?: string,
 ) => {
 	return prisma.$transaction(async (tx) => {
@@ -244,7 +243,11 @@ export const ApproveAdminReturnRequest = async (
 			select: {
 				id: true,
 				status: true,
-				refund_amount: true,
+				order: {
+					select: {
+						total: true,
+					},
+				},
 			},
 		});
 
@@ -256,13 +259,9 @@ export const ApproveAdminReturnRequest = async (
 			throw new Error('Chỉ có thể duyệt yêu cầu đang ở trạng thái pending');
 		}
 
-		const maxRefundAmount = Number(request.refund_amount);
-		if (Number.isNaN(maxRefundAmount)) {
-			throw new Error('refund_amount hiện tại không hợp lệ');
-		}
-
-		if (refundAmount < 0 || refundAmount > maxRefundAmount) {
-			throw new Error('refund_amount không hợp lệ');
+		const refundAmount = Number(request.order.total);
+		if (Number.isNaN(refundAmount) || refundAmount < 0) {
+			throw new Error('total của đơn hàng không hợp lệ');
 		}
 
 		const updated = await tx.returnRequests.update({
@@ -402,7 +401,7 @@ export const MarkAdminReturnRequestReceived = async (requestId: number, adminId:
 	});
 };
 
-export const CompleteAdminReturnRequest = async (requestId: number, adminId: number) => {
+export const RefundAdminReturnRequest = async (requestId: number, adminId: number) => {
 	return prisma.$transaction(async (tx) => {
 		const request = await tx.returnRequests.findUnique({
 			where: { id: requestId },
@@ -425,10 +424,10 @@ export const CompleteAdminReturnRequest = async (requestId: number, adminId: num
 		}
 
 		if (request.status !== 'received') {
-			throw new Error('Chỉ có thể hoàn tất yêu cầu khi trạng thái là received');
+			throw new Error('Chỉ có thể hoàn tiền khi yêu cầu ở trạng thái received');
 		}
 
-		const cancelReason = `Hoàn tất trả hàng/hoàn tiền cho yêu cầu #${request.id}`;
+		const cancelReason = `Hoàn tiền cho yêu cầu trả hàng #${request.id}`;
 
 		await tx.returnRequests.update({
 			where: { id: request.id },
@@ -441,18 +440,18 @@ export const CompleteAdminReturnRequest = async (requestId: number, adminId: num
 			where: { id: request.order_id },
 			data: {
 				payment_status: 'refunded',
-				order_status: 'failed',
+				order_status: 'cancelled',
 				cancel_reason: cancelReason,
 			},
 		});
 
-		if (request.order.order_status !== 'failed') {
+		if (request.order.order_status !== 'cancelled') {
 			await tx.orderStatusLogs.create({
 				data: {
 					order_id: request.order_id,
 					changed_by: adminId,
 					old_status: request.order.order_status,
-					new_status: 'failed',
+					new_status: 'cancelled',
 					note: cancelReason,
 				},
 			});
@@ -472,7 +471,7 @@ export const CompleteAdminReturnRequest = async (requestId: number, adminId: num
 			id: request.id,
 			status: 'completed',
 			order_id: request.order_id,
-			order_status: 'failed',
+			order_status: 'cancelled',
 			payment_status: 'refunded',
 			cancel_reason: cancelReason,
 		};
