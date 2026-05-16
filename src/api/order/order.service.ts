@@ -551,8 +551,6 @@ export const ConfirmOrderReceived = async (userId: number, orderId: number) => {
 			select: {
 				id: true,
 				order_status: true,
-				payment_method: true,
-				payment_status: true,
 			},
 		});
 
@@ -564,17 +562,10 @@ export const ConfirmOrderReceived = async (userId: number, orderId: number) => {
 			throw new Error('Chỉ có thể xác nhận khi đơn hàng đã giao');
 		}
 
-		const nextPaymentStatus = order.payment_method === 'cod' && order.payment_status === 'unpaid'
-			? 'paid'
-			: order.payment_status;
-
 		await tx.orders.update({
 			where: { id: order.id },
 			data: {
 				order_status: 'delivered',
-				...(nextPaymentStatus !== order.payment_status
-					? { payment_status: nextPaymentStatus }
-					: {}),
 			},
 		});
 
