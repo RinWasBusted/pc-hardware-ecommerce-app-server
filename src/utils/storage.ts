@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import path from 'node:path';
+import toSlug from './slug.js';
 
 const s3Client = new S3Client({
     region: process.env.AWS_REGION || '',
@@ -12,9 +14,13 @@ const s3Client = new S3Client({
 
 async function uploadToStorage (file: Express.Multer.File, folder:string = 'undefined'){
     try {
+        const parsedFileName = path.parse(file.originalname);
+        const slugifiedBaseName = toSlug(parsedFileName.name) || `file-${Date.now()}`;
+        const normalizedFileName = `${slugifiedBaseName}${parsedFileName.ext}`;
+
         const uploadParams = {
             Bucket: process.env.AWS_S3_BUCKET_NAME || '',
-            Key: `${folder}/${Date.now()}_${file.originalname}`,
+            Key: `${folder}/${Date.now()}_${normalizedFileName}`,
             Body: file.buffer,
             ContentType: file.mimetype,
         };
