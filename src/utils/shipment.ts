@@ -8,12 +8,6 @@ const SHOP_WARD_CODE = process.env.SHOP_WARD_CODE || '';
 
 const getShipmentFee = async (to_district_id: number, to_ward_code: string) => {
     try {
-        console.log('GHN TOKEN:', GHN_TOKEN);
-        console.log('GHN SHOP ID:', GHN_SHOP_ID);
-        console.log('SHOP DISTRICT ID:', SHOP_DISTRICT_ID);
-        console.log('SHOP WARD CODE:', SHOP_WARD_CODE);
-        console.log('To District ID:', to_district_id);
-        console.log('To Ward Code:', to_ward_code);
         const response = await fetch(GHN_API_URL, {
             method: 'POST',
             headers: {
