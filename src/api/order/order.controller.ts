@@ -75,7 +75,7 @@ export const CreateOrderController = async (req: Request, res: Response) => {
 			items.push({ variant_id: variantId, quantity });
 		}
 
-		await CreateOrder({
+		const orderId = await CreateOrder({
 			user_id: userId,
 			address_id: addressId,
 			...(couponId !== undefined ? { coupon_id: couponId } : {}),
@@ -87,6 +87,7 @@ export const CreateOrderController = async (req: Request, res: Response) => {
 		return res.status(201).json({
 			success: true,
 			message: 'Tạo đơn hàng thành công',
+			data: { order_id: orderId },
 		});
 	} catch (error: any) {
 		return res.status(400).json({
