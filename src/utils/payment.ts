@@ -46,8 +46,8 @@ const getReturnUrls = () => {
 	const clientUrl = getClientUrl();
 
 	return {
-		cancelUrl: normalizeClientPath(clientUrl, '/payment/cancel'),
-		returnUrl: normalizeClientPath(clientUrl, '/payment/success'),
+		cancelUrl: normalizeClientPath(clientUrl, 'payment/cancel'),
+		returnUrl: normalizeClientPath(clientUrl, 'payment/success'),
 	};
 };
 
