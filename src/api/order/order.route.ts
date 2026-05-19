@@ -6,6 +6,7 @@ import {
 	CreateOrderController,
 	GetOrderDetailController,
 	GetOrdersController,
+	GetOrderShipmentFeeController,
 } from './order.controller.js';
 
 const router = Router();
@@ -63,6 +64,48 @@ router.post('/', CreateOrderController);
 
 /**
  * @swagger
+ * /orders/shipment-fee:
+ *   post:
+ *     summary: Tính phí vận chuyển theo địa chỉ
+ *     tags:
+ *       - Orders
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - address_id
+ *             properties:
+ *               address_id:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Tính phí vận chuyển thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     shipping_fee:
+ *                       type: number
+ *                       example: 30000
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ */
+router.post('/shipment-fee', GetOrderShipmentFeeController);
+
+/**
+ * @swagger
  * /orders:
  *   get:
  *     summary: Danh sách đơn hàng của tôi
@@ -103,6 +146,40 @@ router.get('/', GetOrdersController);
  *     responses:
  *       200:
  *         description: Lấy chi tiết đơn hàng thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     address:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         recipient:
+ *                           type: string
+ *                         phone_number:
+ *                           type: string
+ *                         province:
+ *                           type: string
+ *                         district:
+ *                           type: string
+ *                         ward:
+ *                           type: string
+ *                         street:
+ *                           type: string
+ *                         province_id:
+ *                           type: integer
+ *                         district_id:
+ *                           type: integer
+ *                         ward_code:
+ *                           type: string
  */
 router.get('/:id', GetOrderDetailController);
 

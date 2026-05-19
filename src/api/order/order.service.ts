@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma.js';
+import { getShipmentFee } from '../../utils/shipment.js';
 import { getStorageUrl } from '../../utils/storage.js';
 
 export type OrderItemInput = {
@@ -26,6 +27,59 @@ type OrderItemRow = {
 		};
 		product_images: Array<{ image_url: string }>;
 	};
+};
+
+type ShipmentAddress = {
+	id: number;
+	user_id: number;
+	district_id: number | null;
+	ward_code: string | null;
+};
+
+const getShipmentAddress = async (userId: number, addressId: number): Promise<ShipmentAddress> => {
+	const address = await prisma.addresses.findUnique({
+		where: { id: addressId },
+		select: {
+			id: true,
+			user_id: true,
+			district_id: true,
+			ward_code: true,
+		},
+	});
+
+	if (!address || address.user_id !== userId) {
+		throw new Error('Địa chỉ không tồn tại');
+	}
+
+	return address;
+};
+
+const resolveShipmentDestination = (address: ShipmentAddress) => {
+	const toDistrictId = address.district_id ?? NaN;
+	const toWardCode = typeof address.ward_code === 'string' ? address.ward_code.trim() : '';
+
+	if (!Number.isInteger(toDistrictId) || toDistrictId <= 0) {
+		throw new Error('Địa chỉ chưa có dữ liệu vận chuyển, vui lòng cập nhật địa chỉ');
+	}
+
+	if (!toWardCode) {
+		throw new Error('Địa chỉ chưa có dữ liệu vận chuyển, vui lòng cập nhật địa chỉ');
+	}
+
+	return {
+		to_district_id: toDistrictId,
+		to_ward_code: toWardCode,
+	};
+};
+
+const calculateShipmentFeeForAddress = async (userId: number, addressId: number) => {
+	const address = await getShipmentAddress(userId, addressId);
+	const shipmentDestination = resolveShipmentDestination(address);
+
+	return getShipmentFee(
+		shipmentDestination.to_district_id,
+		shipmentDestination.to_ward_code,
+	);
 };
 
 const normalizeItems = (items: OrderItemInput[]) => {
@@ -71,6 +125,14 @@ const mapOrderItems = async (items: OrderItemRow[]) => {
 	}));
 };
 
+export const GetOrderShipmentFee = async (userId: number, addressId: number) => {
+	const shippingFee = await calculateShipmentFeeForAddress(userId, addressId);
+
+	return {
+		shipping_fee: shippingFee,
+	};
+};
+
 export const CreateOrder = async (data: {
 	user_id: number;
 	address_id: number;
@@ -84,13 +146,15 @@ export const CreateOrder = async (data: {
 		throw new Error('Danh sách sản phẩm không hợp lệ');
 	}
 
+	const shippingFee = await calculateShipmentFeeForAddress(data.user_id, data.address_id);
+
 	return prisma.$transaction(async (tx) => {
-		const address = await tx.addresses.findUnique({
+		const existingAddress = await tx.addresses.findUnique({
 			where: { id: data.address_id },
 			select: { id: true, user_id: true },
 		});
 
-		if (!address || address.user_id !== data.user_id) {
+		if (!existingAddress || existingAddress.user_id !== data.user_id) {
 			throw new Error('Địa chỉ không tồn tại');
 		}
 
@@ -191,7 +255,6 @@ export const CreateOrder = async (data: {
 			couponId = coupon.id;
 		}
 
-		const shippingFee = 0;
 		const total = Math.max(subtotal - discountAmount + shippingFee, 0);
 
 		const order = await tx.orders.create({
@@ -219,6 +282,15 @@ export const CreateOrder = async (data: {
 				unit_price: item.unit_price,
 				subtotal: item.subtotal,
 			})),
+		});
+
+		await tx.cartItems.deleteMany({
+			where: {
+				variant_id: { in: variantIds },
+				cart: {
+					user_id: data.user_id,
+				},
+			},
 		});
 
 		for (const item of normalizedItems) {
@@ -356,6 +428,9 @@ export const GetOrderDetail = async (userId: number, orderId: number) => {
 					district: true,
 					ward: true,
 					street: true,
+					province_id: true,
+					district_id: true,
+					ward_code: true,
 				},
 			},
 			coupon: {

@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output = "../src/generated/prisma"
 }
 
 datasource db {
@@ -52,6 +53,9 @@ model Addresses {
   district     String
   ward         String
   street       String
+  province_id  Int?     
+  district_id  Int?
+  ward_code    String?
   is_default   Boolean  @default(false)
   created_at   DateTime @default(now())
 

@@ -15,8 +15,8 @@ const ensureCart = async (userId: number) => {
 	});
 };
 
-const mapCartItems = (cartItems: Array<any>) => {
-	return cartItems.map(async (item) => {
+const mapCartItems = async (cartItems: Array<any>) => {
+	const mappedItems = await cartItems.map(async (item) => {
 		const variant = item.product_variant;
 		const variantImage = variant.product_images?.[0]?.image_url
 			?? variant.product?.product_images?.[0]?.image_url
@@ -49,6 +49,7 @@ const mapCartItems = (cartItems: Array<any>) => {
 			image_url: variantImage ? await getStorageUrl(variantImage) : null,
 		};
 	});
+	return await Promise.all(mappedItems);
 };
 
 const getCartItems = async (userId: number) => {
@@ -97,13 +98,12 @@ const getCartItems = async (userId: number) => {
 			},
 		},
 	});
-
-	const items = mapCartItems(cartDetail?.cart_items ?? []);
+	const items = await mapCartItems(cartDetail?.cart_items ?? []);
 	return items;
 };
 
 export const GetCart = async (userId: number) => {
-	return getCartItems(userId);
+	return await getCartItems(userId);
 };
 
 const assertVariantAvailable = async (variantId: number) => {
@@ -214,11 +214,11 @@ export const RemoveCartItem = async (userId: number, variantId: number) => {
 	}
 
 	await prisma.cartItems.delete({ where: { id: existingItem.id } });
-	return getCartItems(userId);
+	return await getCartItems(userId);
 };
 
 export const ClearCart = async (userId: number) => {
 	const cart = await ensureCart(userId);
 	await prisma.cartItems.deleteMany({ where: { cart_id: cart.id } });
-	return getCartItems(userId);
+	return await getCartItems(userId);
 };
