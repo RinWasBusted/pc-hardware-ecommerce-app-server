@@ -56,6 +56,16 @@ export const authRouter = Router();
  *                 example: "password123"
  *               address:
  *                 type: object
+ *                 required:
+ *                   - recipient
+ *                   - phone_number
+ *                   - province
+ *                   - district
+ *                   - ward
+ *                   - street
+ *                   - province_id
+ *                   - district_id
+ *                   - ward_code
  *                 properties:
  *                   recipient:
  *                     type: string
@@ -75,9 +85,15 @@ export const authRouter = Router();
  *                   street:
  *                     type: string
  *                     example: "123 Đường ABC"
- *                   is_default:
- *                     type: boolean
- *                     example: true
+ *                   province_id:
+ *                     type: integer
+ *                     example: 1
+ *                   district_id:
+ *                     type: integer
+ *                     example: 1454
+ *                   ward_code:
+ *                     type: string
+ *                     example: "21211"
  *     responses:
  *       201:
  *         description: Đăng ký thành công. Kiểm tra email để lấy mã xác thực.

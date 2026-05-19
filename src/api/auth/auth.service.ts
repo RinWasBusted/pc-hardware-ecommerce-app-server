@@ -92,7 +92,16 @@ export const register = async (data: RegisterInput) => {
 		await prisma.addresses.create({
 			data: {
 				user_id: user.id,
-				...data.address
+				recipient: data.address.recipient,
+				phone_number: data.address.phone_number,
+				province: data.address.province,
+				district: data.address.district,
+				ward: data.address.ward,
+				street: data.address.street,
+				province_id: data.address.province_id,
+				district_id: data.address.district_id,
+				ward_code: data.address.ward_code,
+				is_default: true,
 			}
 		});
 	}

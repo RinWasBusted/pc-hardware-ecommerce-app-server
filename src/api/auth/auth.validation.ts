@@ -6,13 +6,15 @@ export const registerSchema = z.object({
   phone_number: z.string().optional(),
   password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự'),
   address: z.object({
-    recipient: z.string(),
-    phone_number: z.string(),
-    province: z.string(),
-    district: z.string(),
-    ward: z.string(),
-    street: z.string(),
-    is_default: z.boolean().default(true)
+    recipient: z.string().trim().min(1, 'Tên người nhận không được để trống'),
+    phone_number: z.string().trim().min(1, 'Số điện thoại người nhận không được để trống'),
+    province: z.string().trim().min(1, 'Tỉnh / Thành phố không được để trống'),
+    district: z.string().trim().min(1, 'Quận / Huyện không được để trống'),
+    ward: z.string().trim().min(1, 'Phường / Xã không được để trống'),
+    street: z.string().trim().min(1, 'Số nhà, tên đường không được để trống'),
+    province_id: z.number().int().positive('province_id không hợp lệ'),
+    district_id: z.number().int().positive('district_id không hợp lệ'),
+    ward_code: z.string().trim().min(1, 'ward_code không hợp lệ'),
   }).optional()
 });
 

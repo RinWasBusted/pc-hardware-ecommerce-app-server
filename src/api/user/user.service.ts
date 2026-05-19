@@ -2,6 +2,32 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../utils/prisma.js';
 import { uploadToStorage, deleteFromStorage, getStorageUrl } from '../../utils/storage.js';
 
+const addressSelect = {
+  id: true,
+  recipient: true,
+  phone_number: true,
+  province: true,
+  district: true,
+  ward: true,
+  street: true,
+  province_id: true,
+  district_id: true,
+  ward_code: true,
+  is_default: true,
+} as const;
+
+type AddressInput = {
+  recipient: string;
+  phone_number: string;
+  province: string;
+  district: string;
+  ward: string;
+  street: string;
+  province_id: number;
+  district_id: number;
+  ward_code: string;
+};
+
 export const GetUserProfile = async (userId: number) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -127,34 +153,24 @@ export const ChangePassword = async (
 };
 
 export const GetUserAddresses = async (userId: number) => {
+  try {
   const addresses = await prisma.addresses.findMany({
     where: { user_id: userId },
-    select: {
-      id: true,
-      recipient: true,
-      phone_number: true,
-      province: true,
-      district: true,
-      ward: true,
-      street: true,
-      is_default: true,
-    },
+    select: addressSelect,
     orderBy: [{ is_default: 'desc' }, { created_at: 'desc' }],
   });
-
   return addresses;
+    
+  } catch(error: any) {
+    console.error('Error fetching user addresses:', error);
+  }
+  
+
 };
 
 export const CreateAddress = async (
   userId: number,
-  data: {
-    recipient: string;
-    phone_number: string;
-    province: string;
-    district: string;
-    ward: string;
-    street: string;
-  }
+  data: AddressInput
 ) => {
   const existingAddressCount = await prisma.addresses.count({
     where: { user_id: userId },
@@ -171,18 +187,12 @@ export const CreateAddress = async (
       district: data.district,
       ward: data.ward,
       street: data.street,
+      province_id: data.province_id,
+      district_id: data.district_id,
+      ward_code: data.ward_code,
       is_default: isDefault,
     },
-    select: {
-      id: true,
-      recipient: true,
-      phone_number: true,
-      province: true,
-      district: true,
-      ward: true,
-      street: true,
-      is_default: true,
-    },
+    select: addressSelect,
   });
 
   return newAddress;
@@ -191,14 +201,7 @@ export const CreateAddress = async (
 export const UpdateAddress = async (
   userId: number,
   addressId: number,
-  data: {
-    recipient?: string;
-    phone_number?: string;
-    province?: string;
-    district?: string;
-    ward?: string;
-    street?: string;
-  }
+  data: AddressInput
 ) => {
   // Verify address belongs to user
   const address = await prisma.addresses.findUnique({
@@ -212,23 +215,17 @@ export const UpdateAddress = async (
   const updatedAddress = await prisma.addresses.update({
     where: { id: addressId },
     data: {
-      ...(data.recipient && { recipient: data.recipient }),
-      ...(data.phone_number && { phone_number: data.phone_number }),
-      ...(data.province && { province: data.province }),
-      ...(data.district && { district: data.district }),
-      ...(data.ward && { ward: data.ward }),
-      ...(data.street && { street: data.street }),
+      recipient: data.recipient,
+      phone_number: data.phone_number,
+      province: data.province,
+      district: data.district,
+      ward: data.ward,
+      street: data.street,
+      province_id: data.province_id,
+      district_id: data.district_id,
+      ward_code: data.ward_code,
     },
-    select: {
-      id: true,
-      recipient: true,
-      phone_number: true,
-      province: true,
-      district: true,
-      ward: true,
-      street: true,
-      is_default: true,
-    },
+    select: addressSelect,
   });
 
   return updatedAddress;
@@ -287,16 +284,7 @@ export const SetDefaultAddress = async (userId: number, addressId: number) => {
   const updatedAddress = await prisma.addresses.update({
     where: { id: addressId },
     data: { is_default: true },
-    select: {
-      id: true,
-      recipient: true,
-      phone_number: true,
-      province: true,
-      district: true,
-      ward: true,
-      street: true,
-      is_default: true,
-    },
+    select: addressSelect,
   });
 
   return updatedAddress;

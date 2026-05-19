@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { CancelOrder, ConfirmOrderReceived, CreateOrder, GetMyOrders, GetOrderDetail, type OrderItemInput } from './order.service.js';
+import { CancelOrder, ConfirmOrderReceived, CreateOrder, GetMyOrders, GetOrderDetail, GetOrderShipmentFee, type OrderItemInput } from './order.service.js';
 
 const PAYMENT_METHODS = new Set(['cod', 'bank_transfer']);
 const ORDER_STATUSES = new Set(['pending', 'confirmed', 'preparing', 'packed', 'shipping', 'delivered', 'failed', 'cancelled']);
@@ -87,6 +87,39 @@ export const CreateOrderController = async (req: Request, res: Response) => {
 		return res.status(201).json({
 			success: true,
 			message: 'Tạo đơn hàng thành công',
+		});
+	} catch (error: any) {
+		return res.status(400).json({
+			success: false,
+			message: error.message,
+		});
+	}
+};
+
+export const GetOrderShipmentFeeController = async (req: Request, res: Response) => {
+	try {
+		const userId = Number(res.locals.userId);
+		const addressId = Number(req.body.address_id);
+
+		if (Number.isNaN(userId)) {
+			return res.status(401).json({
+				success: false,
+				message: 'Không xác định được người dùng',
+			});
+		}
+
+		if (Number.isNaN(addressId) || addressId <= 0) {
+			return res.status(400).json({
+				success: false,
+				message: 'address_id không hợp lệ',
+			});
+		}
+
+		const shipmentFee = await GetOrderShipmentFee(userId, addressId);
+
+		return res.status(200).json({
+			success: true,
+			data: shipmentFee,
 		});
 	} catch (error: any) {
 		return res.status(400).json({

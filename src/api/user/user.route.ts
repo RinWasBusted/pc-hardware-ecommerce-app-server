@@ -282,9 +282,6 @@ router.put('/me/password', Authenticate, ChangePasswordMe);
  *                       id:
  *                         type: integer
  *                         example: 1
- *                       user_id:
- *                         type: integer
- *                         example: 1
  *                       recipient:
  *                         type: string
  *                         example: "Nguyen Van A"
@@ -303,12 +300,18 @@ router.put('/me/password', Authenticate, ChangePasswordMe);
  *                       street:
  *                         type: string
  *                         example: "123 Đường A"
+ *                       province_id:
+ *                         type: integer
+ *                         example: 1
+ *                       district_id:
+ *                         type: integer
+ *                         example: 1454
+ *                       ward_code:
+ *                         type: string
+ *                         example: "21211"
  *                       is_default:
  *                         type: boolean
  *                         example: true
- *                       created_at:
- *                         type: string
- *                         format: date-time
  *       401:
  *         description: Token không được cung cấp hoặc không hợp lệ
  */
@@ -337,6 +340,9 @@ router.get('/me/addresses', Authenticate, GetMyAddresses);
  *               - district
  *               - ward
  *               - street
+ *               - province_id
+ *               - district_id
+ *               - ward_code
  *             properties:
  *               recipient:
  *                 type: string
@@ -352,16 +358,28 @@ router.get('/me/addresses', Authenticate, GetMyAddresses);
  *                 example: "Hà Nội"
  *               district:
  *                 type: string
- *                 description: Phường
+ *                 description: Quận / Huyện
  *                 example: "Hoàn Kiếm"
  *               ward:
  *                 type: string
- *                 description: Xã
+ *                 description: Phường / Xã
  *                 example: "Hàng Trống"
  *               street:
  *                 type: string
  *                 description: Số nhà, tên đường
  *                 example: "123 Đường A"
+ *               province_id:
+ *                 type: integer
+ *                 description: ID tỉnh / thành phố theo hệ thống vận chuyển
+ *                 example: 1
+ *               district_id:
+ *                 type: integer
+ *                 description: ID quận / huyện theo hệ thống vận chuyển
+ *                 example: 1454
+ *               ward_code:
+ *                 type: string
+ *                 description: Mã phường / xã theo hệ thống vận chuyển
+ *                 example: "21211"
  *     responses:
  *       201:
  *         description: Thêm địa chỉ thành công
@@ -378,8 +396,6 @@ router.get('/me/addresses', Authenticate, GetMyAddresses);
  *                   properties:
  *                     id:
  *                       type: integer
- *                     user_id:
- *                       type: integer
  *                     recipient:
  *                       type: string
  *                     phone_number:
@@ -392,11 +408,14 @@ router.get('/me/addresses', Authenticate, GetMyAddresses);
  *                       type: string
  *                     street:
  *                       type: string
+ *                     province_id:
+ *                       type: integer
+ *                     district_id:
+ *                       type: integer
+ *                     ward_code:
+ *                       type: string
  *                     is_default:
  *                       type: boolean
- *                     created_at:
- *                       type: string
- *                       format: date-time
  *                 message:
  *                   type: string
  *                   example: "Thêm địa chỉ thành công"
@@ -425,11 +444,21 @@ router.post('/me/addresses', Authenticate, AddAddress);
  *           type: integer
  *         description: ID địa chỉ
  *     requestBody:
- *       required: false
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - recipient
+ *               - phone_number
+ *               - province
+ *               - district
+ *               - ward
+ *               - street
+ *               - province_id
+ *               - district_id
+ *               - ward_code
  *             properties:
  *               recipient:
  *                 type: string
@@ -442,6 +471,12 @@ router.post('/me/addresses', Authenticate, AddAddress);
  *               ward:
  *                 type: string
  *               street:
+ *                 type: string
+ *               province_id:
+ *                 type: integer
+ *               district_id:
+ *                 type: integer
+ *               ward_code:
  *                 type: string
  *     responses:
  *       200:
@@ -456,6 +491,29 @@ router.post('/me/addresses', Authenticate, AddAddress);
  *                   example: true
  *                 data:
  *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     recipient:
+ *                       type: string
+ *                     phone_number:
+ *                       type: string
+ *                     province:
+ *                       type: string
+ *                     district:
+ *                       type: string
+ *                     ward:
+ *                       type: string
+ *                     street:
+ *                       type: string
+ *                     province_id:
+ *                       type: integer
+ *                     district_id:
+ *                       type: integer
+ *                     ward_code:
+ *                       type: string
+ *                     is_default:
+ *                       type: boolean
  *                 message:
  *                   type: string
  *                   example: "Cập nhật địa chỉ thành công"
@@ -534,6 +592,29 @@ router.delete('/me/addresses/:id', Authenticate, DeleteMyAddress);
  *                   example: true
  *                 data:
  *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     recipient:
+ *                       type: string
+ *                     phone_number:
+ *                       type: string
+ *                     province:
+ *                       type: string
+ *                     district:
+ *                       type: string
+ *                     ward:
+ *                       type: string
+ *                     street:
+ *                       type: string
+ *                     province_id:
+ *                       type: integer
+ *                     district_id:
+ *                       type: integer
+ *                     ward_code:
+ *                       type: string
+ *                     is_default:
+ *                       type: boolean
  *                 message:
  *                   type: string
  *                   example: "Đặt làm địa chỉ mặc định thành công"
