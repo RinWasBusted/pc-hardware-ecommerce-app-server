@@ -4,6 +4,8 @@ import {
     registerSchema,
     loginSchema,
     googleLoginSchema,
+    verifyEmailSchema,
+    resendVerifyEmailSchema,
     refreshTokenSchema,
     forgotPasswordSchema,
     resetPasswordSchema,
@@ -27,7 +29,7 @@ export const authRouter = Router();
  * /auth/register:
  *   post:
  *     summary: Đăng ký tài khoản mới
- *     description: Tạo tài khoản mới. Email xác thực sẽ được gửi để verify tài khoản.
+ *     description: Tạo tài khoản mới. Hệ thống sẽ gửi mã xác thực 6 ký tự qua email để người dùng nhập trên ứng dụng.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -77,7 +79,7 @@ export const authRouter = Router();
  *                     example: true
  *     responses:
  *       201:
- *         description: Đăng ký thành công. Kiểm tra email để xác thực tài khoản.
+ *         description: Đăng ký thành công. Kiểm tra email để lấy mã xác thực.
  *         content:
  *           application/json:
  *             schema:
@@ -85,7 +87,7 @@ export const authRouter = Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản."
+ *                   example: "Đăng ký thành công. Vui lòng kiểm tra email và nhập mã xác thực để kích hoạt tài khoản."
  *       400:
  *         description: Lỗi xác thực hoặc email đã tồn tại
  *         content:
@@ -102,18 +104,27 @@ authRouter.post('/register', validate(registerSchema), authController.register);
 /**
  * @swagger
  * /auth/verify-email:
- *   get:
+ *   post:
  *     summary: Xác thực email
- *     description: Xác thực email người dùng bằng token được gửi qua email
+ *     description: Xác thực email người dùng bằng mã 6 ký tự được gửi qua email
  *     tags: [Auth]
- *     parameters:
- *       - in: query
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *         description: Token xác thực email
- *         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *               code:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 6
+ *                 example: "Ab3x9Q"
  *     responses:
  *       200:
  *         description: Xác thực email thành công
@@ -126,7 +137,7 @@ authRouter.post('/register', validate(registerSchema), authController.register);
  *                   type: string
  *                   example: "Xác thực email thành công"
  *       400:
- *         description: Token không hợp lệ hoặc đã hết hạn
+ *         description: Mã xác thực không hợp lệ, sai hoặc đã hết hạn
  *         content:
  *           application/json:
  *             schema:
@@ -134,9 +145,44 @@ authRouter.post('/register', validate(registerSchema), authController.register);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "Token không hợp lệ hoặc đã hết hạn"
+ *                   example: "Mã xác thực không đúng"
  */
-authRouter.get('/verify-email', authController.verifyEmail);
+authRouter.post('/verify-email', validate(verifyEmailSchema), authController.verifyEmail);
+
+/**
+ * @swagger
+ * /auth/resend-verify-email:
+ *   post:
+ *     summary: Gửi lại mã xác thực email
+ *     description: Xóa mã cũ trong Redis nếu có và gửi lại mã xác thực 6 ký tự mới qua email.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: Gửi lại mã xác thực thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Gửi lại mã xác thực thành công. Vui lòng kiểm tra email của bạn."
+ *       400:
+ *         description: Email không tồn tại hoặc tài khoản đã được xác thực
+ */
+authRouter.post('/resend-verify-email', validate(resendVerifyEmailSchema), authController.resendVerifyEmail);
 
 /**
  * @swagger

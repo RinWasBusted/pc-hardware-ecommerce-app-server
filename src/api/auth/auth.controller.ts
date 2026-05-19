@@ -6,7 +6,9 @@ import type {
 	GoogleLoginInput,
 	RefreshTokenInput,
 	ForgotPasswordInput,
-	ResetPasswordInput
+	ResetPasswordInput,
+	VerifyEmailInput,
+	ResendVerifyEmailInput
 } from './auth.validation.js';
 import 'dotenv/config';
 
@@ -27,29 +29,34 @@ export const register = async (req: Request, res: Response) => {
 };
 
 export const verifyEmail = async (req: Request, res: Response) => {
-	const { token } = req.query;
-	if (!token || typeof token !== 'string') {
-		return res.status(400).json({
+	try {
+		const data: VerifyEmailInput = req.body;
+		const result = await authService.verifyEmail(data);
+		res.status(200).json({
+			success: true,
+			...result
+		});
+	} catch (error: any) {
+		res.status(400).json({
 			success: false,
-			message: 'Token không hợp lệ'
+			message: error.message
 		});
 	}
-	const user_agent = req.header('User-Agent') || 'Unknown';
-	let verificationUrl = '';
+};
 
-	if(user_agent.includes('Mobile') || user_agent.includes('Android') || user_agent.includes('iPhone')) {
-		verificationUrl = process.env.MOBILE_APP_URL ? `${process.env.MOBILE_APP_URL}://auth/verify-email` : `${process.env.FRONTEND_URL || 'http://localhost:3000'}/email-verified`;
-	} else {
-		verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/email-verified`;
-	}
-
+export const resendVerifyEmail = async (req: Request, res: Response) => {
 	try {
-		const result = await authService.verifyEmail(token);
-		
-		verificationUrl += `?success=true&message=${encodeURIComponent(result.message)}`;
-		res.redirect(verificationUrl);
+		const data: ResendVerifyEmailInput = req.body;
+		const result = await authService.resendVerifyEmail(data);
+		res.status(200).json({
+			success: true,
+			...result
+		});
 	} catch (error: any) {
-		res.redirect(`${verificationUrl}?success=false&message=${encodeURIComponent(error.message)}`);
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
 	}
 };
 

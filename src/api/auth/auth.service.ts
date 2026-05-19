@@ -1,14 +1,13 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../../utils/prisma.js';
 import {
 	generateAccessToken,
 	generateRefreshToken,
-	generateEmailVerificationToken,
 	generatePasswordResetToken,
 	getRefreshTokenTtlSeconds,
 	verifyRefreshToken,
-	verifyEmailVerificationToken,
 	verifyPasswordResetToken,
 	type TokenPayload
 } from '../../utils/jwt.js';
@@ -16,7 +15,10 @@ import {
 	storeRefreshToken,
 	hasRefreshToken,
 	revokeRefreshToken,
-	revokeAllRefreshTokens
+	revokeAllRefreshTokens,
+	storeVerifyCode,
+	getVerifyCode,
+	deleteVerifyCode
 } from '../../utils/redis.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js';
 import type {
@@ -24,14 +26,29 @@ import type {
 	LoginInput,
 	GoogleLoginInput,
 	ForgotPasswordInput,
-	ResetPasswordInput
+	ResetPasswordInput,
+	VerifyEmailInput,
+	ResendVerifyEmailInput
 } from './auth.validation.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const VERIFICATION_CODE_CHARSET =
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 const persistRefreshToken = async (userId: number, refreshToken: string) => {
 	const refreshTokenTtlSeconds = getRefreshTokenTtlSeconds(refreshToken);
 	await storeRefreshToken(userId, refreshToken, refreshTokenTtlSeconds);
+};
+
+const generateVerificationCode = () => {
+	const bytes = crypto.randomBytes(6);
+	return Array.from(bytes, (byte) => VERIFICATION_CODE_CHARSET[byte % VERIFICATION_CODE_CHARSET.length]).join('');
+};
+
+const createAndSendVerificationCode = async (email: string) => {
+	const verificationCode = generateVerificationCode();
+	await storeVerifyCode(email, verificationCode);
+	await sendVerificationEmail(email, verificationCode);
 };
 
 export const register = async (data: RegisterInput) => {
@@ -70,40 +87,68 @@ export const register = async (data: RegisterInput) => {
 		});
 	}
 
-	// Generate verification token and send email
-	const verificationToken = generateEmailVerificationToken(user.id, user.email);
-	await sendVerificationEmail(user.email, verificationToken);
+	try {
+		await createAndSendVerificationCode(user.email);
+	} catch (error: any) {
+		throw new Error(
+			'Đăng ký thành công nhưng gửi mã xác thực thất bại. Vui lòng yêu cầu gửi lại mã xác thực.'
+		);
+	}
 
 	return {
-		message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.'
+		message: 'Đăng ký thành công. Vui lòng kiểm tra email và nhập mã xác thực để kích hoạt tài khoản.'
 	};
 };
 
-export const verifyEmail = async (token: string) => {
-	try {
-		const { userId, email } = verifyEmailVerificationToken(token);
+export const verifyEmail = async (data: VerifyEmailInput) => {
+	const user = await prisma.user.findUnique({
+		where: { email: data.email }
+	});
 
-		const user = await prisma.user.findUnique({
-			where: { id: userId, email }
-		});
-
-		if (!user) {
-			throw new Error('Người dùng không tồn tại');
-		}
-
-		if (user.is_verified) {
-			throw new Error('Tài khoản đã được xác thực');
-		}
-
-		await prisma.user.update({
-			where: { id: userId },
-			data: { is_verified: true }
-		});
-
-		return { message: 'Xác thực email thành công' };
-	} catch (error: any) {
-		throw new Error('Token không hợp lệ hoặc đã hết hạn');
+	if (!user) {
+		throw new Error('Người dùng không tồn tại');
 	}
+
+	if (user.is_verified) {
+		throw new Error('Tài khoản đã được xác thực');
+	}
+
+	const storedCode = await getVerifyCode(data.email);
+	if (!storedCode) {
+		throw new Error('Mã xác thực không tồn tại hoặc đã hết hạn');
+	}
+
+	if (storedCode !== data.code) {
+		throw new Error('Mã xác thực không đúng');
+	}
+
+	await prisma.user.update({
+		where: { id: user.id },
+		data: { is_verified: true }
+	});
+
+	await deleteVerifyCode(data.email);
+
+	return { message: 'Xác thực email thành công' };
+};
+
+export const resendVerifyEmail = async (data: ResendVerifyEmailInput) => {
+	const user = await prisma.user.findUnique({
+		where: { email: data.email }
+	});
+
+	if (!user) {
+		throw new Error('Người dùng không tồn tại');
+	}
+
+	if (user.is_verified) {
+		throw new Error('Tài khoản đã được xác thực');
+	}
+
+	await deleteVerifyCode(data.email);
+	await createAndSendVerificationCode(data.email);
+
+	return { message: 'Gửi lại mã xác thực thành công. Vui lòng kiểm tra email của bạn.' };
 };
 
 export const login = async (data: LoginInput) => {

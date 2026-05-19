@@ -44,7 +44,15 @@ export const resetPasswordUserSchema = z.object({
 });
 
 export const verifyEmailSchema = z.object({
-  token: z.string().min(1, 'Token không được để trống')
+  email: z.string().email('Email không hợp lệ'),
+  code: z
+    .string()
+    .length(6, 'Mã xác thực phải gồm đúng 6 ký tự')
+    .regex(/^[A-Za-z0-9]{6}$/, 'Mã xác thực chỉ được chứa chữ và số')
+});
+
+export const resendVerifyEmailSchema = z.object({
+  email: z.string().email('Email không hợp lệ')
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -55,3 +63,4 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ResetPasswordUserInput = z.infer<typeof resetPasswordUserSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ResendVerifyEmailInput = z.infer<typeof resendVerifyEmailSchema>;

@@ -32,20 +32,18 @@ export const sendEmail = async ({ to, subject, html }: EmailOptions): Promise<vo
   }
 };
 
-export const sendVerificationEmail = async (email: string, token: string): Promise<void> => {
-  const verificationUrl = `${process.env.BASE_URL || 'http://localhost'}:${process.env.PORT || 3000}/api/auth/verify-email?token=${token}`;
-  
+export const sendVerificationEmail = async (email: string, code: string): Promise<void> => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Xác thực tài khoản</h2>
       <p>Cảm ơn bạn đã đăng ký tài khoản tại PC Hardware Store.</p>
-      <p>Vui lòng nhấn vào nút bên dưới để xác thực email của bạn:</p>
-      <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-        Xác thực email
-      </a>
-      <p>Hoặc copy link sau vào trình duyệt:</p>
-      <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
-      <p>Link này sẽ hết hạn sau 24 giờ.</p>
+      <p>Vui lòng nhập mã xác minh bên dưới trên ứng dụng để hoàn tất xác thực email:</p>
+      <div style="margin: 24px 0; padding: 16px; background-color: #f5f7fb; border-radius: 8px; text-align: center;">
+        <p style="margin: 0 0 8px; color: #666; font-size: 14px;">Mã xác minh của bạn</p>
+        <p style="margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #111827;">${code}</p>
+      </div>
+      <p>Mã gồm 6 ký tự, có phân biệt chữ hoa và chữ thường.</p>
+      <p>Mã này sẽ hết hạn sau 1 giờ.</p>
       <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;">
       <p style="color: #999; font-size: 12px;">Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.</p>
     </div>

@@ -47,20 +47,6 @@ export const getRefreshTokenTtlSeconds = (token: string): number => {
   return ttlSeconds;
 };
 
-export const generateEmailVerificationToken = (userId: number, email: string): string => {
-  return jwt.sign({ userId, email, type: 'email-verification' }, JWT_SECRET, {
-    expiresIn: '24h'
-  });
-};
-
-export const verifyEmailVerificationToken = (token: string): { userId: number; email: string } => {
-  const decoded = jwt.verify(token, JWT_SECRET) as any;
-  if (decoded.type !== 'email-verification') {
-    throw new Error('Invalid token type');
-  }
-  return { userId: decoded.userId, email: decoded.email };
-};
-
 export const generatePasswordResetToken = (userId: number, email: string): string => {
   return jwt.sign({ userId, email, type: 'password-reset' }, JWT_SECRET, {
     expiresIn: '24h'
