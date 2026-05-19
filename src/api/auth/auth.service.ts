@@ -1,14 +1,13 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../../utils/prisma.js';
 import {
 	generateAccessToken,
 	generateRefreshToken,
-	generateEmailVerificationToken,
 	generatePasswordResetToken,
 	getRefreshTokenTtlSeconds,
 	verifyRefreshToken,
-	verifyEmailVerificationToken,
 	verifyPasswordResetToken,
 	type TokenPayload
 } from '../../utils/jwt.js';
@@ -16,7 +15,13 @@ import {
 	storeRefreshToken,
 	hasRefreshToken,
 	revokeRefreshToken,
-	revokeAllRefreshTokens
+	revokeAllRefreshTokens,
+	storeVerifyCode,
+	getVerifyCode,
+	deleteVerifyCode,
+	storeResetPasswordCode,
+	getResetPasswordCode,
+	deleteResetPasswordCode
 } from '../../utils/redis.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js';
 import type {
@@ -24,14 +29,36 @@ import type {
 	LoginInput,
 	GoogleLoginInput,
 	ForgotPasswordInput,
-	ResetPasswordInput
+	VerifyResetPasswordCodeInput,
+	ResetPasswordInput,
+	VerifyEmailInput,
+	ResendVerifyEmailInput
 } from './auth.validation.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const VERIFICATION_CODE_CHARSET =
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 const persistRefreshToken = async (userId: number, refreshToken: string) => {
 	const refreshTokenTtlSeconds = getRefreshTokenTtlSeconds(refreshToken);
 	await storeRefreshToken(userId, refreshToken, refreshTokenTtlSeconds);
+};
+
+const generateVerificationCode = () => {
+	const bytes = crypto.randomBytes(6);
+	return Array.from(bytes, (byte) => VERIFICATION_CODE_CHARSET[byte % VERIFICATION_CODE_CHARSET.length]).join('');
+};
+
+const createAndSendVerificationCode = async (email: string) => {
+	const verificationCode = generateVerificationCode();
+	await storeVerifyCode(email, verificationCode);
+	await sendVerificationEmail(email, verificationCode);
+};
+
+const createAndSendResetPasswordCode = async (email: string) => {
+	const resetPasswordCode = generateVerificationCode();
+	await storeResetPasswordCode(email, resetPasswordCode);
+	await sendPasswordResetEmail(email, resetPasswordCode);
 };
 
 export const register = async (data: RegisterInput) => {
@@ -70,40 +97,68 @@ export const register = async (data: RegisterInput) => {
 		});
 	}
 
-	// Generate verification token and send email
-	const verificationToken = generateEmailVerificationToken(user.id, user.email);
-	await sendVerificationEmail(user.email, verificationToken);
+	try {
+		await createAndSendVerificationCode(user.email);
+	} catch (error: any) {
+		throw new Error(
+			'Đăng ký thành công nhưng gửi mã xác thực thất bại. Vui lòng yêu cầu gửi lại mã xác thực.'
+		);
+	}
 
 	return {
-		message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.'
+		message: 'Đăng ký thành công. Vui lòng kiểm tra email và nhập mã xác thực để kích hoạt tài khoản.'
 	};
 };
 
-export const verifyEmail = async (token: string) => {
-	try {
-		const { userId, email } = verifyEmailVerificationToken(token);
+export const verifyEmail = async (data: VerifyEmailInput) => {
+	const user = await prisma.user.findUnique({
+		where: { email: data.email }
+	});
 
-		const user = await prisma.user.findUnique({
-			where: { id: userId, email }
-		});
-
-		if (!user) {
-			throw new Error('Người dùng không tồn tại');
-		}
-
-		if (user.is_verified) {
-			throw new Error('Tài khoản đã được xác thực');
-		}
-
-		await prisma.user.update({
-			where: { id: userId },
-			data: { is_verified: true }
-		});
-
-		return { message: 'Xác thực email thành công' };
-	} catch (error: any) {
-		throw new Error('Token không hợp lệ hoặc đã hết hạn');
+	if (!user) {
+		throw new Error('Người dùng không tồn tại');
 	}
+
+	if (user.is_verified) {
+		throw new Error('Tài khoản đã được xác thực');
+	}
+
+	const storedCode = await getVerifyCode(data.email);
+	if (!storedCode) {
+		throw new Error('Mã xác thực không tồn tại hoặc đã hết hạn');
+	}
+
+	if (storedCode !== data.code) {
+		throw new Error('Mã xác thực không đúng');
+	}
+
+	await prisma.user.update({
+		where: { id: user.id },
+		data: { is_verified: true }
+	});
+
+	await deleteVerifyCode(data.email);
+
+	return { message: 'Xác thực email thành công' };
+};
+
+export const resendVerifyEmail = async (data: ResendVerifyEmailInput) => {
+	const user = await prisma.user.findUnique({
+		where: { email: data.email }
+	});
+
+	if (!user) {
+		throw new Error('Người dùng không tồn tại');
+	}
+
+	if (user.is_verified) {
+		throw new Error('Tài khoản đã được xác thực');
+	}
+
+	await deleteVerifyCode(data.email);
+	await createAndSendVerificationCode(data.email);
+
+	return { message: 'Gửi lại mã xác thực thành công. Vui lòng kiểm tra email của bạn.' };
 };
 
 export const login = async (data: LoginInput) => {
@@ -256,29 +311,56 @@ export const refreshAccessToken = async (refreshToken: string) => {
 	}
 };
 
-export const forgotPassword = async (data: ForgotPasswordInput, is_mobile: boolean) => {
+export const forgotPassword = async (data: ForgotPasswordInput) => {
 	const user = await prisma.user.findUnique({
 		where: { email: data.email }
 	});
 
 	if (!user) {
-		// Email không tồn tại
-		throw new Error('Email không tồn tại trong hệ thống');
+		return {
+			message:
+				'Nếu email tồn tại trong hệ thống, mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
+		};
 	}
 
-	// Email tồn tại - gửi reset email với token
-	const resetToken = generatePasswordResetToken(user.id, user.email);
-	
-	await sendPasswordResetEmail(user.email, resetToken);
+	await deleteResetPasswordCode(user.email);
+	await createAndSendResetPasswordCode(user.email);
 
 	return {
-		message: 'Email hướng dẫn đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
+		message:
+			'Nếu email tồn tại trong hệ thống, mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
 	};
 };
 
-export const resetPassword = async (data: ResetPasswordInput) => {
+export const verifyResetPasswordCode = async (data: VerifyResetPasswordCodeInput) => {
+	const user = await prisma.user.findUnique({
+		where: { email: data.email }
+	});
+
+	if (!user) {
+		throw new Error('Người dùng không tồn tại');
+	}
+
+	const storedCode = await getResetPasswordCode(data.email);
+	if (!storedCode) {
+		throw new Error('Mã đặt lại mật khẩu không tồn tại hoặc đã hết hạn');
+	}
+
+	if (storedCode !== data.code) {
+		throw new Error('Mã đặt lại mật khẩu không đúng');
+	}
+
+	await deleteResetPasswordCode(data.email);
+
+	return {
+		reset_token: generatePasswordResetToken(user.id, user.email),
+		message: 'Xác thực mã đặt lại mật khẩu thành công'
+	};
+};
+
+export const resetPassword = async (token: string, data: ResetPasswordInput) => {
 	try {
-		const { userId, email } = verifyPasswordResetToken(data.token);
+		const { userId, email } = verifyPasswordResetToken(token);
 
 		const user = await prisma.user.findUnique({
 			where: { id: userId, email }
@@ -307,36 +389,6 @@ export const logout = async (userId: number, refreshToken: string) => {
 	await revokeRefreshToken(userId, refreshToken);
 
 	return { message: 'Đăng xuất thành công' };
-};
-
-export const redirectResetPassword = async (token: string, is_mobile: boolean) => {
-	try {
-		const { userId, email } = verifyPasswordResetToken(token);
-
-		const user = await prisma.user.findUnique({
-			where: { id: userId, email }
-		});
-
-		if (!user) {
-			throw new Error('Người dùng không tồn tại');
-		}
-
-		let redirectUrl = '';
-		
-		if (is_mobile) {
-			redirectUrl = `${process.env.MOBILE_APP_URL || 'myapp://'}auth/reset-password?token=${token}`;
-		} else {
-			redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
-		}
-
-		return {
-			message: 'Token xác thực hợp lệ',
-			redirectUrl,
-			token
-		};
-	} catch (error: any) {
-		throw new Error('Token không hợp lệ hoặc đã hết hạn');
-	}
 };
 
 export const resetPasswordUser = async (userId: number, oldPassword: string, newPassword: string) => {

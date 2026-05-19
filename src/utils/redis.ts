@@ -7,6 +7,10 @@ const client = createClient({
 
 const REFRESH_TOKEN_PREFIX = 'auth:refresh:token';
 const USER_REFRESH_TOKENS_PREFIX = 'auth:refresh:user';
+const VERIFY_CODE_PREFIX = 'verify';
+const VERIFY_CODE_TTL_SECONDS = 60 * 60;
+const RESET_PASSWORD_CODE_PREFIX = 'reset-password';
+const RESET_PASSWORD_CODE_TTL_SECONDS = 60 * 60;
 
 client.on('error', (err) => console.error('Redis Client Error', err));
 
@@ -31,6 +35,15 @@ export const getRefreshTokenKey = (refreshToken: string) =>
 
 export const getUserRefreshTokensKey = (userId: number) =>
   `${USER_REFRESH_TOKENS_PREFIX}:${userId}`;
+
+export const getVerifyCodeKey = (email: string) => `${VERIFY_CODE_PREFIX}:${email}`;
+
+export const getVerifyCodeTtlSeconds = () => VERIFY_CODE_TTL_SECONDS;
+
+export const getResetPasswordCodeKey = (email: string) =>
+  `${RESET_PASSWORD_CODE_PREFIX}:${email}`;
+
+export const getResetPasswordCodeTtlSeconds = () => RESET_PASSWORD_CODE_TTL_SECONDS;
 
 export const storeRefreshToken = async (
   userId: number,
@@ -74,6 +87,30 @@ export const revokeAllRefreshTokens = async (userId: number) => {
   }
 
   await client.del(userRefreshTokensKey);
+};
+
+export const storeVerifyCode = async (email: string, code: string) => {
+  await client.set(getVerifyCodeKey(email), code, { EX: VERIFY_CODE_TTL_SECONDS });
+};
+
+export const getVerifyCode = async (email: string) => {
+  return client.get(getVerifyCodeKey(email));
+};
+
+export const deleteVerifyCode = async (email: string) => {
+  await client.del(getVerifyCodeKey(email));
+};
+
+export const storeResetPasswordCode = async (email: string, code: string) => {
+  await client.set(getResetPasswordCodeKey(email), code, { EX: RESET_PASSWORD_CODE_TTL_SECONDS });
+};
+
+export const getResetPasswordCode = async (email: string) => {
+  return client.get(getResetPasswordCodeKey(email));
+};
+
+export const deleteResetPasswordCode = async (email: string) => {
+  await client.del(getResetPasswordCodeKey(email));
 };
 
 export default client;
