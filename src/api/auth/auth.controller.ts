@@ -6,6 +6,7 @@ import type {
 	GoogleLoginInput,
 	RefreshTokenInput,
 	ForgotPasswordInput,
+	VerifyResetPasswordCodeInput,
 	ResetPasswordInput,
 	VerifyEmailInput,
 	ResendVerifyEmailInput
@@ -126,15 +127,23 @@ export const refreshToken = async (req: Request, res: Response) => {
 export const forgotPassword = async (req: Request, res: Response) => {
 	try {
 		const data: ForgotPasswordInput = req.body;
+		const result = await authService.forgotPassword(data);
+		res.status(200).json({
+			success: true,
+			...result
+		});
+	} catch (error: any) {
+		res.status(400).json({
+			success: false,
+			message: error.message
+		});
+	}
+};
 
-		const user_agent = req.header('User-Agent') || 'Unknown';
-		let is_mobile = false;
-
-		if(user_agent.includes('Mobile') || user_agent.includes('Android') || user_agent.includes('iPhone')) {
-			is_mobile = true;
-		}
-
-		const result = await authService.forgotPassword(data, is_mobile);
+export const verifyResetPasswordCode = async (req: Request, res: Response) => {
+	try {
+		const data: VerifyResetPasswordCodeInput = req.body;
+		const result = await authService.verifyResetPasswordCode(data);
 		res.status(200).json({
 			success: true,
 			...result
@@ -148,9 +157,17 @@ export const forgotPassword = async (req: Request, res: Response) => {
 };
 
 export const resetPassword = async (req: Request, res: Response) => {
+	const { token } = req.query;
+	if (!token || typeof token !== 'string') {
+		return res.status(400).json({
+			success: false,
+			message: 'Token không hợp lệ'
+		});
+	}
+
 	try {
 		const data: ResetPasswordInput = req.body;
-		const result = await authService.resetPassword(data);
+		const result = await authService.resetPassword(token, data);
 		res.status(200).json({
 			success: true,
 			...result
@@ -185,33 +202,6 @@ export const logout = async (req: Request, res: Response) => {
 			success: false,
 			message: error.message
 		});
-	}
-};
-
-export const redirectResetPassword = async (req: Request, res: Response) => {
-	const { token } = req.query;
-	if (!token || typeof token !== 'string') {
-		return res.status(400).json({
-			success: false,
-			message: 'Token không hợp lệ'
-		});
-	}
-
-	const user_agent = req.header('User-Agent') || 'Unknown';
-	const is_mobile = user_agent.includes('Mobile') || user_agent.includes('Android') || user_agent.includes('iPhone');
-
-	try {
-		const result = await authService.redirectResetPassword(token, is_mobile);
-		
-		res.redirect(result.redirectUrl);
-	} catch (error: any) {
-		let errorUrl = '';
-		if (is_mobile) {
-			errorUrl = `${process.env.MOBILE_APP_URL || 'myapp://'}auth/reset-password`;
-		} else {
-			errorUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password`;
-		}
-		res.redirect(`${errorUrl}?success=false&message=${encodeURIComponent(error.message)}`);
 	}
 };
 

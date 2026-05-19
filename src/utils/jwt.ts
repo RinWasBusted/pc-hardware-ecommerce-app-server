@@ -49,7 +49,7 @@ export const getRefreshTokenTtlSeconds = (token: string): number => {
 
 export const generatePasswordResetToken = (userId: number, email: string): string => {
   return jwt.sign({ userId, email, type: 'password-reset' }, JWT_SECRET, {
-    expiresIn: '24h'
+    expiresIn: '15m'
   });
 };
 

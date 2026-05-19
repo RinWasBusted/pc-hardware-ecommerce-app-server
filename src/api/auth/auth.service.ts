@@ -18,7 +18,10 @@ import {
 	revokeAllRefreshTokens,
 	storeVerifyCode,
 	getVerifyCode,
-	deleteVerifyCode
+	deleteVerifyCode,
+	storeResetPasswordCode,
+	getResetPasswordCode,
+	deleteResetPasswordCode
 } from '../../utils/redis.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js';
 import type {
@@ -26,6 +29,7 @@ import type {
 	LoginInput,
 	GoogleLoginInput,
 	ForgotPasswordInput,
+	VerifyResetPasswordCodeInput,
 	ResetPasswordInput,
 	VerifyEmailInput,
 	ResendVerifyEmailInput
@@ -49,6 +53,12 @@ const createAndSendVerificationCode = async (email: string) => {
 	const verificationCode = generateVerificationCode();
 	await storeVerifyCode(email, verificationCode);
 	await sendVerificationEmail(email, verificationCode);
+};
+
+const createAndSendResetPasswordCode = async (email: string) => {
+	const resetPasswordCode = generateVerificationCode();
+	await storeResetPasswordCode(email, resetPasswordCode);
+	await sendPasswordResetEmail(email, resetPasswordCode);
 };
 
 export const register = async (data: RegisterInput) => {
@@ -301,29 +311,56 @@ export const refreshAccessToken = async (refreshToken: string) => {
 	}
 };
 
-export const forgotPassword = async (data: ForgotPasswordInput, is_mobile: boolean) => {
+export const forgotPassword = async (data: ForgotPasswordInput) => {
 	const user = await prisma.user.findUnique({
 		where: { email: data.email }
 	});
 
 	if (!user) {
-		// Email không tồn tại
-		throw new Error('Email không tồn tại trong hệ thống');
+		return {
+			message:
+				'Nếu email tồn tại trong hệ thống, mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
+		};
 	}
 
-	// Email tồn tại - gửi reset email với token
-	const resetToken = generatePasswordResetToken(user.id, user.email);
-	
-	await sendPasswordResetEmail(user.email, resetToken);
+	await deleteResetPasswordCode(user.email);
+	await createAndSendResetPasswordCode(user.email);
 
 	return {
-		message: 'Email hướng dẫn đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
+		message:
+			'Nếu email tồn tại trong hệ thống, mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
 	};
 };
 
-export const resetPassword = async (data: ResetPasswordInput) => {
+export const verifyResetPasswordCode = async (data: VerifyResetPasswordCodeInput) => {
+	const user = await prisma.user.findUnique({
+		where: { email: data.email }
+	});
+
+	if (!user) {
+		throw new Error('Người dùng không tồn tại');
+	}
+
+	const storedCode = await getResetPasswordCode(data.email);
+	if (!storedCode) {
+		throw new Error('Mã đặt lại mật khẩu không tồn tại hoặc đã hết hạn');
+	}
+
+	if (storedCode !== data.code) {
+		throw new Error('Mã đặt lại mật khẩu không đúng');
+	}
+
+	await deleteResetPasswordCode(data.email);
+
+	return {
+		reset_token: generatePasswordResetToken(user.id, user.email),
+		message: 'Xác thực mã đặt lại mật khẩu thành công'
+	};
+};
+
+export const resetPassword = async (token: string, data: ResetPasswordInput) => {
 	try {
-		const { userId, email } = verifyPasswordResetToken(data.token);
+		const { userId, email } = verifyPasswordResetToken(token);
 
 		const user = await prisma.user.findUnique({
 			where: { id: userId, email }
@@ -352,36 +389,6 @@ export const logout = async (userId: number, refreshToken: string) => {
 	await revokeRefreshToken(userId, refreshToken);
 
 	return { message: 'Đăng xuất thành công' };
-};
-
-export const redirectResetPassword = async (token: string, is_mobile: boolean) => {
-	try {
-		const { userId, email } = verifyPasswordResetToken(token);
-
-		const user = await prisma.user.findUnique({
-			where: { id: userId, email }
-		});
-
-		if (!user) {
-			throw new Error('Người dùng không tồn tại');
-		}
-
-		let redirectUrl = '';
-		
-		if (is_mobile) {
-			redirectUrl = `${process.env.MOBILE_APP_URL || 'myapp://'}auth/reset-password?token=${token}`;
-		} else {
-			redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
-		}
-
-		return {
-			message: 'Token xác thực hợp lệ',
-			redirectUrl,
-			token
-		};
-	} catch (error: any) {
-		throw new Error('Token không hợp lệ hoặc đã hết hạn');
-	}
 };
 
 export const resetPasswordUser = async (userId: number, oldPassword: string, newPassword: string) => {

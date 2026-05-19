@@ -8,6 +8,7 @@ import {
     resendVerifyEmailSchema,
     refreshTokenSchema,
     forgotPasswordSchema,
+    verifyResetPasswordCodeSchema,
     resetPasswordSchema,
     resetPasswordUserSchema
 } from './auth.validation.js';
@@ -375,8 +376,8 @@ authRouter.post('/refresh', authController.refreshToken);
  * @swagger
  * /auth/forgot-password:
  *   post:
- *     summary: Gửi email reset mật khẩu
- *     description: Gửi email reset mật khẩu đến địa chỉ email được cung cấp
+ *     summary: Gửi mã đặt lại mật khẩu
+ *     description: Nếu email tồn tại trong hệ thống, server sẽ gửi mã đặt lại mật khẩu 6 ký tự qua email.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -392,7 +393,7 @@ authRouter.post('/refresh', authController.refreshToken);
  *                 example: "user@example.com"
  *     responses:
  *       200:
- *         description: Email reset mật khẩu đã được gửi
+ *         description: Yêu cầu gửi mã đặt lại mật khẩu đã được xử lý
  *         content:
  *           application/json:
  *             schema:
@@ -400,49 +401,16 @@ authRouter.post('/refresh', authController.refreshToken);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Email reset mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư."
- *       400:
- *         description: Email không tồn tại
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: "Email không tồn tại"
+ *                   example: "Nếu email tồn tại trong hệ thống, mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn."
  */
 authRouter.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
 
 /**
  * @swagger
- * /auth/redirect-reset-password:
- *   get:
- *     summary: Redirect đến trang reset password trên FE
- *     description: Xác thực token reset password từ email và redirect người dùng đến trang reset password trên Frontend để nhập mật khẩu mới
- *     tags: [Auth]
- *     parameters:
- *       - in: query
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *         description: Token reset password từ email
- *         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *     responses:
- *       302:
- *         description: Redirect thành công đến trang reset password trên FE với token trong query param
- *       400:
- *         description: Token không hợp lệ hoặc đã hết hạn
- */
-authRouter.get('/redirect-reset-password', authController.redirectResetPassword);
-
-/**
- * @swagger
- * /auth/reset-password:
+ * /auth/verify-reset-password-code:
  *   post:
- *     summary: Đặt lại mật khẩu mới
- *     description: Sử dụng token từ email reset để đặt mật khẩu mới
+ *     summary: Xác thực mã đặt lại mật khẩu
+ *     description: Kiểm tra mã đặt lại mật khẩu 6 ký tự và trả về reset token ngắn hạn nếu hợp lệ.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -450,12 +418,63 @@ authRouter.get('/redirect-reset-password', authController.redirectResetPassword)
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token, new_password]
+ *             required: [email, code]
  *             properties:
- *               token:
+ *               email:
  *                 type: string
- *                 description: Token reset password từ email
- *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 format: email
+ *                 example: "user@example.com"
+ *               code:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 6
+ *                 example: "Ab3x9Q"
+ *     responses:
+ *       200:
+ *         description: Xác thực mã thành công và trả về token đặt lại mật khẩu
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 reset_token:
+ *                   type: string
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 message:
+ *                   type: string
+ *                   example: "Xác thực mã đặt lại mật khẩu thành công"
+ *       400:
+ *         description: Mã không hợp lệ, sai hoặc đã hết hạn
+ */
+authRouter.post(
+    '/verify-reset-password-code',
+    validate(verifyResetPasswordCodeSchema),
+    authController.verifyResetPasswordCode
+);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Đặt lại mật khẩu mới
+ *     description: Sử dụng reset token ở query param và mật khẩu mới trong request body để cập nhật mật khẩu.
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Reset token được trả về từ API xác thực mã đặt lại mật khẩu
+ *         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [new_password]
+ *             properties:
  *               new_password:
  *                 type: string
  *                 minLength: 8
