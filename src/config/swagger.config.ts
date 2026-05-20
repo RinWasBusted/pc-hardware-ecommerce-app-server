@@ -2,8 +2,11 @@ import type { Application } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
-const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL as string + ':' + process.env.PORT as string|| `http://localhost:3000`;
+const PORT = process.env.PORT || '3000';
+const baseUrlFromEnv = process.env.BASE_URL?.trim();
+const BASE_URL = baseUrlFromEnv
+	? (/\:\d+$/.test(baseUrlFromEnv) ? baseUrlFromEnv : `${baseUrlFromEnv}:${PORT}`)
+	: `http://localhost:${PORT}`;
 
 const swaggerOptions: swaggerJsdoc.Options = {
 	definition: {
