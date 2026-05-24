@@ -183,7 +183,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const logout = async (req: Request, res: Response) => {
 	try {
 		const userId = (req as any).user.userId; // From auth middleware
-		const { refresh_token } = req.body;
+		const { refresh_token, fcm_token } = req.body;
     
 		if (!refresh_token) {
 			return res.status(400).json({
@@ -192,7 +192,7 @@ export const logout = async (req: Request, res: Response) => {
 			});
 		}
 
-		const result = await authService.logout(userId, refresh_token);
+		const result = await authService.logout(userId, refresh_token, fcm_token);
 		res.status(200).json({
 			success: true,
 			...result

@@ -24,6 +24,7 @@ import {
 	deleteResetPasswordCode
 } from '../../utils/redis.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js';
+import { deleteFcmToken } from '../notification/notification.service.js';
 import type {
 	RegisterInput,
 	LoginInput,
@@ -394,8 +395,12 @@ export const resetPassword = async (token: string, data: ResetPasswordInput) => 
 	}
 };
 
-export const logout = async (userId: number, refreshToken: string) => {
+export const logout = async (userId: number, refreshToken: string, fcmToken?: string) => {
 	await revokeRefreshToken(userId, refreshToken);
+
+	if (fcmToken) {
+		await deleteFcmToken(userId, fcmToken);
+	}
 
 	return { message: 'Đăng xuất thành công' };
 };
