@@ -74,7 +74,6 @@ export async function streamNotifications (req: Request, res: Response) {
     res.write("\n"); // Send initial data to establish the connection
     await markUserAsOnline(userId);
     const onNotification = (data: string) => {
-        console.log(`The api is sending notification to user ${userId}: ${data}`);
       res.write(`data: ${data}\n\n`);
     };
 
@@ -87,7 +86,6 @@ export async function streamNotifications (req: Request, res: Response) {
     // Uncomment the following block for testing SSE with dummy data.
     let cnt = 1;
     const intervalId = setInterval(() => {
-        console.log(`About to send notification ${cnt} to user ${userId}`);
       notificationService.sendNotification([userId], {
         id: cnt,
         title: `Notification ${cnt}`,

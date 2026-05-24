@@ -58,5 +58,4 @@ export async function isUserOnline(user_id: number): Promise<boolean> {
 
 export async function sendOnlineUserNotification(user_id: number, message: string) {
     await publisher.publish(`notifications:${user_id}`, message);
-    console.log(`Published notification to user ${user_id} on channel notifications:${user_id}, message: ${message}`);
 }

@@ -194,15 +194,12 @@ export async function createNotification (userIds: number[], type: NotificationT
 
 export async function sendNotification(user_ids: number[], data: NotificationPayload) {
     const stringData = JSON.stringify(data);
-    console.log(`Sending notification to users: ${user_ids.join(', ')}, data: ${stringData}`);
     const offlineUserIds: number[] = [];
     for (const user_id of user_ids) {
         const isOnline = await isUserOnline(user_id);
-        console.log(`User ${user_id} online status: ${isOnline}`);
         if (!isOnline) {
             offlineUserIds.push(user_id);
         } else {
-            console.log(`User ${user_id} is online, sending real-time notification`);
             await sendOnlineUserNotification(user_id, stringData);
         }   
     }
