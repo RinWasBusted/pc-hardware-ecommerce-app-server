@@ -103,6 +103,8 @@ model Products {
   brand_id Int
   specifications Json?
   status ProductStatus @default(available)
+  avg_rating Decimal @default(0)
+  total_reviews Int @default(0)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -312,6 +314,8 @@ model Reviews {
   order_id Int
   rating Int
   comment String?
+  is_edited Boolean @default(false)
+  edit_count Int @default(0)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -319,6 +323,11 @@ model Reviews {
   product Products @relation(fields: [product_id], references: [id])
   variant ProductVariants @relation(fields: [variant_id], references: [id])
   order Orders @relation(fields: [order_id], references: [id])
+  images ReviewImages[]
+
+  @@unique([order_id, variant_id])
+  @@index([product_id, created_at(sort: Desc)])
+  @@index([variant_id, created_at(sort: Desc)])
 }
 
 model Wishlists {
@@ -440,4 +449,12 @@ model ReturnImages {
   image_url String
 
   return_request ReturnRequests @relation(fields: [return_request_id], references: [id])
+}
+
+model ReviewImages {
+  id Int @id @default(autoincrement())
+  review_id Int
+  image_url String
+
+  review Reviews @relation(fields: [review_id], references: [id])
 }
