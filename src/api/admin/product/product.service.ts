@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 import prisma from "../../../utils/prisma.js"
-import type { ProductStatus } from "../../../generated/prisma/index.js"
-import { deleteFromStorage, getStorageUrl, uploadToStorage } from '../../../utils/storage.js'
+import type { ProductStatus } from '@prisma/client'
+import { deleteManyFromStorage, deleteFromStorage, getStorageUrl, uploadManyToStorage } from '../../../utils/storage.js'
 
 export type AdminProductListFilters = {
     page: number;
@@ -57,15 +57,13 @@ const uploadFilesToStorage = async (files: Express.Multer.File[], folder: string
     const uploadedKeys: string[] = []
 
     try {
-        for (const file of files) {
-            const imageKey = await uploadToStorage(file, folder)
-            uploadedKeys.push(imageKey)
-        }
+        const imageKeys = await uploadManyToStorage(files, folder)
+        uploadedKeys.push(...imageKeys)
 
         return uploadedKeys
     } catch (error) {
         if (uploadedKeys.length > 0) {
-            await Promise.all(uploadedKeys.map((key) => deleteFromStorage(key).catch(() => undefined)))
+            await deleteManyFromStorage(uploadedKeys).catch(() => undefined)
         }
 
         throw error
@@ -79,7 +77,7 @@ const deleteStorageKeysBestEffort = async (keys: Array<string | null | undefined
         return
     }
 
-    await Promise.all(validKeys.map((key) => deleteFromStorage(key).catch(() => undefined)))
+    await deleteManyFromStorage(validKeys).catch(() => undefined)
 }
 
 const mapVariantUniqueError = (error: any) => {

@@ -250,7 +250,6 @@ model Orders {
   order_items OrderItems[]
   order_status_logs OrderStatusLogs[]
   payments Payments[]
-  reviews Reviews[]
   return_requests ReturnRequests[]
 
   user User @relation(fields: [user_id], references: [id])
@@ -267,6 +266,7 @@ model OrderItems {
   subtotal Decimal
 
   return_items ReturnItems[]
+  reviews Reviews[]
 
   order Orders @relation(fields: [order_id], references: [id])
   product_variant ProductVariants @relation(fields: [variant_id], references: [id])
@@ -311,7 +311,7 @@ model Reviews {
   user_id Int
   product_id Int
   variant_id Int
-  order_id Int
+  order_item_id Int
   rating Int
   comment String?
   is_edited Boolean @default(false)
@@ -322,10 +322,10 @@ model Reviews {
   user User @relation(fields: [user_id], references: [id])
   product Products @relation(fields: [product_id], references: [id])
   variant ProductVariants @relation(fields: [variant_id], references: [id])
-  order Orders @relation(fields: [order_id], references: [id])
+  order_item OrderItems @relation(fields: [order_item_id], references: [id])
   images ReviewImages[]
 
-  @@unique([order_id, variant_id])
+  @@unique([order_item_id, variant_id])
   @@index([product_id, created_at(sort: Desc)])
   @@index([variant_id, created_at(sort: Desc)])
 }

@@ -12,6 +12,7 @@ import paymentRouter from './payment/payment.route.js';
 import returnRequestRouter from './return-request/return-request.route.js';
 import notificationRouter from './notification/notification.route.js';
 import wishlistRouter from './wishlist/wishlist.route.js';
+import reviewRouter from './review/review.route.js'
 import { Authenticate, Authorize } from '../middleware/auth.middleware.js';
 
 export const router = Router();
@@ -28,4 +29,5 @@ router.use('/orders', orderRouter);
 router.use('/payments', paymentRouter);
 router.use('/return-requests', returnRequestRouter);
 router.use('/notifications', notificationRouter);
+router.use('/review', reviewRouter)
 router.use('/admin', Authenticate, Authorize('admin'), adminRouter);
