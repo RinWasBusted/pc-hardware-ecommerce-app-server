@@ -10,6 +10,7 @@ import couponRouter from './coupon/coupon.route.js';
 import orderRouter from './order/order.route.js';
 import returnRequestRouter from './return-request/return-request.route.js';
 import notificationRouter from './notification/notification.route.js';
+import bannerRouter from './banner/banner.route.js';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/coupons', couponRouter);
 router.use('/orders', orderRouter);
 router.use('/return-requests', returnRequestRouter);
 router.use('/notifications', notificationRouter);
+router.use('/banners', bannerRouter);
 
 export default router;
