@@ -1,6 +1,23 @@
 import type { Request, Response } from 'express';
 import { CreateBanner, DeleteBanner, GetBanners, UpdateBanner } from './banner.service.js';
 
+const parseEndDate = (value: unknown): Date | null | undefined => {
+	if (value === undefined) return undefined;
+
+	if (value === null || value === '') return null;
+
+	if (typeof value !== 'string') {
+		throw new Error('Trường end_date không hợp lệ');
+	}
+
+	const parsedDate = new Date(value);
+	if (Number.isNaN(parsedDate.getTime())) {
+		throw new Error('Trường end_date không hợp lệ');
+	}
+
+	return parsedDate;
+};
+
 export const GetBannersController = async (req: Request, res: Response) => {
 	try {
 		const sortRaw = typeof req.query.sort === 'string' ? req.query.sort.toLowerCase() : 'asc';
@@ -53,7 +70,7 @@ export const GetBannersController = async (req: Request, res: Response) => {
 
 export const CreateBannerController = async (req: Request, res: Response) => {
 	try {
-		const { link_url, is_active } = req.body;
+		const { link_url, is_active, end_date } = req.body;
 
 		if (!req.file) {
 			return res.status(400).json({
@@ -83,10 +100,13 @@ export const CreateBannerController = async (req: Request, res: Response) => {
 			}
 		}
 
+		const parsedEndDate = parseEndDate(end_date);
+
 		const banner = await CreateBanner(
 			req.file,
 			typeof link_url === 'string' && link_url.trim() ? link_url.trim() : undefined,
-			parsedIsActive
+			parsedIsActive,
+			parsedEndDate
 		);
 
 		return res.status(201).json({
@@ -105,7 +125,7 @@ export const CreateBannerController = async (req: Request, res: Response) => {
 export const UpdateBannerController = async (req: Request, res: Response) => {
 	try {
 		const bannerId = parseInt(req.params.id as string, 10);
-		const { link_url, sort_order, is_active } = req.body;
+		const { link_url, sort_order, is_active, end_date } = req.body;
 
 		if (Number.isNaN(bannerId)) {
 			return res.status(400).json({
@@ -146,6 +166,8 @@ export const UpdateBannerController = async (req: Request, res: Response) => {
 			}
 		}
 
+		const parsedEndDate = parseEndDate(end_date);
+
 		const banner = await UpdateBanner(bannerId, {
 			...(req.file && { imageFile: req.file }),
 			...(link_url !== undefined && {
@@ -153,6 +175,7 @@ export const UpdateBannerController = async (req: Request, res: Response) => {
 			}),
 			...(parsedSortOrder !== undefined && { sortOrder: parsedSortOrder }),
 			...(parsedIsActive !== undefined && { isActive: parsedIsActive }),
+			...(parsedEndDate !== undefined && { endDate: parsedEndDate }),
 		});
 
 		return res.status(200).json({

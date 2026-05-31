@@ -7,6 +7,16 @@ type BannerRecord = {
 	link_url: string | null;
 	sort_order: number;
 	is_active: boolean;
+	end_date: Date | null;
+};
+
+const bannerSelect = {
+	id: true,
+	image_url: true,
+	link_url: true,
+	sort_order: true,
+	is_active: true,
+	end_date: true,
 };
 
 const mapBannerResponse = async (banner: BannerRecord) => ({
@@ -27,13 +37,7 @@ export const GetBanners = async ({ sort, isActive }: GetBannersParams) => {
 		orderBy: {
 			sort_order: sort,
 		},
-		select: {
-			id: true,
-			image_url: true,
-			link_url: true,
-			sort_order: true,
-			is_active: true,
-		},
+		select: bannerSelect,
 	});
 
 	return Promise.all(banners.map(mapBannerResponse));
@@ -42,14 +46,13 @@ export const GetBanners = async ({ sort, isActive }: GetBannersParams) => {
 export const CreateBanner = async (
 	imageFile: Express.Multer.File,
 	linkUrl?: string,
-	isActive: boolean = true
+	isActive: boolean = true,
+	endDate?: Date | null
 ) => {
 	const uploadedImageKey = await uploadToStorage(imageFile, 'pc-hardware-ecommerce/banners');
 
 	try {
-		// Start a transaction to ensure atomicity
 		const banner = await prisma.$transaction(async (tx) => {
-			// Increment all existing banners' sort_order by 1
 			await tx.banners.updateMany({
 				data: {
 					sort_order: {
@@ -58,21 +61,15 @@ export const CreateBanner = async (
 				},
 			});
 
-			// Create the new banner with sort_order = 1 (first order)
 			return tx.banners.create({
 				data: {
 					image_url: uploadedImageKey,
 					link_url: linkUrl || null,
 					sort_order: 1,
 					is_active: isActive,
+					end_date: endDate ?? null,
 				},
-				select: {
-					id: true,
-					image_url: true,
-					link_url: true,
-					sort_order: true,
-					is_active: true,
-				},
+				select: bannerSelect,
 			});
 		});
 
@@ -88,18 +85,13 @@ type UpdateBannerPayload = {
 	linkUrl?: string | null;
 	sortOrder?: number;
 	isActive?: boolean;
+	endDate?: Date | null;
 };
 
 export const UpdateBanner = async (bannerId: number, payload: UpdateBannerPayload) => {
 	const existing = await prisma.banners.findUnique({
 		where: { id: bannerId },
-		select: {
-			id: true,
-			image_url: true,
-			link_url: true,
-			sort_order: true,
-			is_active: true,
-		},
+		select: bannerSelect,
 	});
 
 	if (!existing) {
@@ -136,14 +128,9 @@ export const UpdateBanner = async (bannerId: number, payload: UpdateBannerPayloa
 					...(payload.linkUrl !== undefined && { link_url: payload.linkUrl }),
 					...(payload.sortOrder !== undefined && { sort_order: payload.sortOrder }),
 					...(payload.isActive !== undefined && { is_active: payload.isActive }),
+					...(payload.endDate !== undefined && { end_date: payload.endDate }),
 				},
-				select: {
-					id: true,
-					image_url: true,
-					link_url: true,
-					sort_order: true,
-					is_active: true,
-				},
+				select: bannerSelect,
 			});
 		});
 

@@ -63,6 +63,11 @@ router.get('/', GetBannersController);
  *               is_active:
  *                 type: boolean
  *                 example: true
+ *               end_date:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *                 example: "2026-12-31T23:59:59.000Z"
  *     responses:
  *       201:
  *         description: Tạo banner thành công
@@ -106,6 +111,11 @@ router.post('/', uploadSingle('image'), CreateBannerController);
  *               is_active:
  *                 type: boolean
  *                 example: false
+ *               end_date:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *                 example: "2026-12-31T23:59:59.000Z"
  *     responses:
  *       200:
  *         description: Cập nhật banner thành công
