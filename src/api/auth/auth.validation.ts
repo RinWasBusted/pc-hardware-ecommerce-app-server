@@ -31,6 +31,11 @@ export const refreshTokenSchema = z.object({
   refresh_token: z.string().min(1, 'Refresh token không được để trống')
 });
 
+export const logoutSchema = z.object({
+  refresh_token: z.string().min(1, 'Refresh token không được để trống'),
+  fcm_token: z.string().min(1, 'FCM token không được để trống').optional()
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Email không hợp lệ')
 });
@@ -68,6 +73,7 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type LogoutInput = z.infer<typeof logoutSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type VerifyResetPasswordCodeInput = z.infer<typeof verifyResetPasswordCodeSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

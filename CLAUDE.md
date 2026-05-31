@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This file is the working guide for Claude Code and other coding agents in this repository.
+This file is the working guide for coding agents (such as Claude Code or Antigravity) in this repository.
 
 It is not a replacement for a product README. Its job is to explain how this codebase is organized, what patterns already exist, and what must be preserved when making changes.
 
@@ -14,112 +14,129 @@ It is not a replacement for a product README. Its job is to explain how this cod
 - Runtime entrypoint is `src/index.ts`, which calls `createServer()` from `src/server.ts`.
 - Swagger UI is exposed at `/api-docs` and the raw spec at `/api-docs.json`.
 
-### Current stack
+### Current Stack
 
-- Node.js + TypeScript with ESM-style imports (`.js` suffix in TS source).
-- Express 5.
-- Prisma 7 with PostgreSQL via `@prisma/adapter-pg`.
-- Redis for cache/session-adjacent support.
-- Cloudinary for image storage.
-- Resend for email delivery.
-- Google OAuth via `google-auth-library`.
-- MoMo payment integration.
-- Swagger JSDoc annotations embedded in route files.
+- **Runtime**: Node.js + TypeScript with ESM-style imports (`.js` suffix in TS source).
+- **Web Server**: Express 5 (leveraging built-in async error capturing).
+- **ORM & DB**: Prisma 7 with PostgreSQL via `@prisma/adapter-pg` and standard `@prisma/client`.
+- **Cache/State**: Redis for real-time online status and Event Pub/Sub.
+- **Storage**: AWS S3 via `@aws-sdk/client-s3` (handling presigned URL generation and file CRUD).
+- **Email Delivery**: Resend for verification codes and password resets.
+- **Auth**: Custom JWT credentials & Google OAuth via `google-auth-library`.
+- **Payment**: PayOS (`@payos/node`) integration for generating checkout links and verifying webhooks.
+- **Push & Real-time Notifications**: Firebase Cloud Messaging (FCM) using `firebase-admin` for push, and Server-Sent Events (SSE) using Redis Pub/Sub for live notifications.
+- **Shipping**: GHN (Giao Hàng Nhanh) API integration for real-time shipping fee calculation.
 
 ## Repo Map
 
-### API layering
+### API Layering
 
 The main pattern is:
 
 `route -> controller -> service`
 
-- `src/api/**/**.route.ts`
-  Route registration and Swagger annotations live here.
-- `src/api/**/**.controller.ts`
-  Controllers parse request input, apply basic validation, call services, and shape JSON responses.
-- `src/api/**/**.service.ts`
-  Services contain business logic and Prisma access.
+- `src/api/**/**.route.ts`  
+  Route registration, middleware chains, and Swagger JSDoc annotations live here.
+- `src/api/**/**.controller.ts`  
+  Controllers parse and validate request input, call services, capture responses, and return structured JSON.
+- `src/api/**/**.service.ts`  
+  Services encapsulate core business logic, validation rules, data manipulation, and database access via Prisma.
 
-There is a mirrored admin structure under `src/api/admin`.
+There is a mirrored admin structure under `src/api/admin/**`.
 
-### Important folders
+### Important Folders
 
-- `src/api`
-  Public API modules: auth, user, category, brand, product, cart, coupon, order, payment.
-- `src/api/admin`
-  Admin API modules: users, categories, brands, products, variants, product images, stock, coupons, orders.
-- `src/middleware`
-  Auth and request validation helpers. `error.middleware.ts` exists but is currently empty and is not part of a centralized error pipeline.
-- `src/utils`
-  Shared utilities for Prisma, Redis, JWT, Cloudinary, Multer, email, and slug generation.
-- `prisma/schema.prisma`
-  Main Prisma schema.
-- `prisma/migrations`
-  Prisma migration history.
-- `src/generated/prisma`
-  Committed generated Prisma client used at runtime.
+- `src/api`  
+  Customer-facing modules: auth, user, category, brand, product, cart, coupon, order, payment, wishlist, notification, return-request.
+- `src/api/admin`  
+  Administrative modules: user, category, brand, product, variant, product-image, stock, coupon, order, notification, return-request.
+- `src/middleware`  
+  Authentication, authorization, validation, and centralized error handling middleware (`error.middleware.ts`).
+- `src/utils`  
+  Shared utilities for database, cache, auth, storage, shipment, payment, and mailing APIs.
+- `prisma/schema.prisma`  
+  Primary database schema definition.
+- `prisma/migrations`  
+  Database migration history.
+
+---
 
 ## Commands And Workflow
 
-Package scripts currently defined in `package.json`:
+Package scripts defined in `package.json`:
 
 ```bash
+# Start in development mode (watches typescript files using tsx)
 npm run dev
+
+# Compile TypeScript to JavaScript (tsc output in dist)
 npm run build
+
+# Start the compiled codebase or run TS files directly
 npm start
+```
+
+### Database Commands
+
+```bash
+# Apply migrations or create a new database migration
+npx prisma migrate dev
+
+# Directly push schema changes to DB (for testing/dev prototyping)
+npx prisma db push
+
+# Launch Prisma Studio GUI
+npx prisma studio
 ```
 
 ### Notes
 
 - `npm run dev` uses `tsx watch src/index.ts`.
 - `npm start` uses `ts-node src/index.ts`.
-- `npm test` is not a real test suite right now. The script currently exits with an error.
-- `prisma.config.ts` points to `prisma/schema.prisma`, migrations in `prisma/migrations`, and a seed path of `prisma/seed.ts`.
-- `prisma/seed.ts` is currently missing, so do not describe seeding as a working repo flow unless that file is added.
+- `npm test` is currently an unconfigured placeholder.
+- `prisma.config.ts` points to `prisma/schema.prisma` and sets the seed path to `prisma/seed.ts`.
+- `prisma/seed.ts` is currently missing; do not reference database seeding as a working flow unless it is created.
 
-## Working Rules For Claude
+---
+
+## Working Rules
 
 ### Preserve existing architecture
 
-- Keep the `route -> controller -> service` split.
-- Put request parsing and HTTP response shaping in controllers.
-- Put business rules, transactions, and Prisma calls in services.
-- Reuse utilities from `src/utils` instead of duplicating logic.
+- Strictly keep the `route -> controller -> service` separation.
+- Keep Express-specific handling (parsing query params, setting SSE headers, cookies, and standard responses) inside controllers.
+- Put business rules, database transaction blocks, and external API requests inside services.
+- Reuse utilities from `src/utils` instead of duplicating helper functions.
 
-### Keep routing and auth patterns consistent
+### Centralized Error Handling
 
-- Public routes are mounted in `src/api/index.ts`.
-- Admin routes are mounted behind `Authenticate` and `Authorize('admin')` in `src/api/index.ts`.
-- Some admin route files still add explicit `Authorize('admin')` on individual handlers. Preserve the current intent instead of removing guards casually.
-- Auth middleware stores the decoded JWT payload on `req.user` and also mirrors values to `res.locals`.
+- Centralized error handler exists in `src/middleware/error.middleware.ts` and is registered inside `src/server.ts`.
+- Make use of `AppError` (imported from `src/utils/appError.ts`) when throwing errors with specific status codes (e.g. `throw new AppError('Message', 400)`).
+- Because this project uses Express 5, returning or throwing errors in async routes/handlers will automatically bubble up to `ErrorHandler`. Some older code blocks may still contain manual `try/catch` wrappers returning JSON directly—prefer moving towards `AppError` throwing for new/revised code where appropriate.
 
 ### Keep response conventions consistent
 
-Most controllers return JSON in one of these shapes:
+API responses should match these standard envelopes:
 
-- `{ success: true, data: ... }`
-- `{ success: true, message: ... }`
-- `{ success: true, data: ..., pagination: ... }`
-- `{ success: false, message: ... }`
-
-Do not introduce a new response envelope style unless the task explicitly requires it.
+- Success with data: `{ success: true, data: ... }`
+- Success with message: `{ success: true, message: ... }`
+- Success with pagination: `{ success: true, data: ..., pagination: { total, page, limit, hasMore } }`
+- Error response (automatically shaped by centralized ErrorHandler or legacy manual catches): `{ success: false, message: ... }`
 
 ### Update Swagger when endpoints change
 
-- Swagger annotations are maintained inside the route files, not in a separate OpenAPI folder.
-- If you add, remove, rename, or materially change an endpoint, update the Swagger block in the same route file in the same change.
+- JSDoc Swagger annotations are embedded directly inside route files (`.route.ts`), not in external OpenAPI specs.
+- If endpoints are added, modified, renamed, or deprecated, update the route file's JSDoc block in the same commit/PR.
 
 ### Be careful with Prisma client usage
 
-- Runtime Prisma imports come from `src/generated/prisma`, especially in `src/utils/prisma.ts`.
-- Do not hand-edit files under `src/generated/prisma`.
-- If Prisma generation is changed, preserve the current runtime import contract. Breaking the generated client location or shape can break the app even if `schema.prisma` looks valid.
-- Some files import enums or types from `@prisma/client`, while others import from the generated client. Be careful when changing Prisma generation settings.
+- Prisma client is instantiated and exported from `src/utils/prisma.ts`.
+- Database models and enums are imported directly from `@prisma/client`.
+- DO NOT refer to `src/generated/prisma` as it is not used in runtime code.
 
 ### Convert Prisma decimals before returning JSON
 
-Many service methods convert Prisma `Decimal` values with `Number(...)` before returning data. Keep doing that for monetary fields such as:
+Many database fields are defined as `Decimal` in Prisma but need to be returned as `Number` in JSON. Explicitly convert monetary and numeric fields with `Number(...)` before returning them. Affected fields:
 
 - `price`
 - `compare_at_price`
@@ -130,241 +147,145 @@ Many service methods convert Prisma `Decimal` values with `Number(...)` before r
 - `discount_value`
 - `refund_amount`
 
-Do not return raw Prisma Decimal objects in API responses.
+### Keep image and storage handling consistent
 
-### Keep image handling consistent
-
-- Uploads use Multer memory storage from `src/utils/multer.ts`.
-- Images are uploaded to Cloudinary from controllers/services.
-- The database generally stores Cloudinary `public_id`, not a permanent full URL.
-- Response mappers often convert stored image values to URLs with `getCloudinaryImageUrl(...)`.
-- When replacing an image, check whether the old stored value is a Cloudinary public ID before deleting it.
-
-### Keep error handling grounded in current behavior
-
-- There is no active centralized error middleware right now.
-- Controllers usually wrap service calls in `try/catch` and return `400`, `401`, or `403` directly.
-- Do not document or rely on a global error pipeline that does not currently exist.
+- Files are uploaded using Multer's memory storage (`src/utils/multer.ts`).
+- Storage is managed on AWS S3 (`src/utils/storage.ts`) via `uploadToStorage`, `deleteFromStorage`, and `getStorageUrl`.
+- Database models store the unique **S3 Object Key** (e.g., `user/avatars/...` or `return-requests/...`).
+- API mappers should convert stored keys to dynamic, secure presigned URLs using `await getStorageUrl(key)` (expiring in 900 seconds / 15 minutes) before returning them in responses.
+- Always delete old/unused object keys from storage using `deleteFromStorage` when replacing or removing assets to prevent orphans.
 
 ### Keep user-facing language aligned
 
-- Many business messages and validation errors are written in Vietnamese.
-- Unless the task explicitly changes product language, keep new messages aligned with the existing Vietnamese user-facing style.
+- Most user-facing business notifications, validations, and custom errors are written in Vietnamese.
+- Unless explicitly directed otherwise, match this language convention for API response messages.
+
+---
 
 ## Domain Guide
 
 ### Auth
 
-Files:
-
-- `src/api/auth`
-- `src/middleware/auth.middleware.ts`
-- `src/utils/jwt.ts`
-- `src/utils/email.ts`
-
-Current behavior:
-
-- Email/password register and login.
-- Email verification flow.
-- Google login.
-- Refresh token flow.
-- Forgot password and reset password.
-- Authenticated password reset.
-- Logout.
-
-Important note:
-
-- Refresh tokens are stored in an in-memory `Map` in `auth.service.ts`, not in Redis or the database. Treat this as session-stateful application behavior.
+- **Files**: `src/api/auth`, `src/middleware/auth.middleware.ts`, `src/utils/jwt.ts`, `src/utils/email.ts`.
+- **Mechanisms**: custom JWT credentials registration/login, email validation code verification, Google OAuth ID token verification via `auth.service.ts`, password resets, and session logouts.
+- **Refresh tokens**: Stored in a stateful in-memory `Map` inside `auth.service.ts` rather than in Redis or the database. Treat this as memory-stateful runtime state.
 
 ### User profile and addresses
 
-Files:
+- **Files**: `src/api/user`.
+- **Mechanisms**: Fetch/modify profile, upload avatar to AWS S3, and change password.
+- **Addresses**: Address CRUD, supporting GHN (Giao Hàng Nhanh) address IDs (`province_id`, `district_id`, `ward_code`) to integrate with shipping fee calculations. Default address logic is handled in the service.
 
-- `src/api/user`
+### Wishlist
 
-Current behavior:
-
-- `/users/me` profile fetch/update.
-- Avatar upload and replacement.
-- Password change.
-- Address CRUD plus default-address management.
-
-Important note:
-
-- Default address behavior is enforced in service logic. Do not move it to the client.
+- **Files**: `src/api/wishlist`.
+- **Mechanisms**: Simple CRUD for users to maintain a wishlist of products.
 
 ### Catalog
 
-Files:
-
-- `src/api/category`
-- `src/api/brand`
-- `src/api/product`
-- `src/api/admin/category`
-- `src/api/admin/brand`
-- `src/api/admin/product`
-- `src/api/admin/variant`
-- `src/api/admin/product-image`
-
-Current behavior:
-
-- Public category tree and category detail.
-- Public brand list/detail.
-- Public product list, product-by-category, and product detail by slug.
-- Admin CRUD for categories, brands, products, variants, and product images.
-
-Important notes:
-
-- Category services build a tree structure in memory.
-- Product slugs are derived from names via slug helpers.
-- Product and variant image ordering matters (`is_primary`, `sort_order`).
-- Product deletion and variant deletion are blocked when related cart/order/review data exists.
+- **Files**: `src/api/category`, `src/api/brand`, `src/api/product`, `src/api/admin/category`, `src/api/admin/brand`, `src/api/admin/product`, `src/api/admin/variant`, `src/api/admin/product-image`.
+- **Mechanisms**: Category tree hierarchy, brands listing, product lists, search/filter, and variants configuration. 
+- **Keys**: Product and Variant image arrays have ordering/primary status logic (`is_primary`, `sort_order`). Product deletion/modification is blocked if there are active cart items or orders referencing them. Product slugs are processed using `toSlug`.
 
 ### Cart
 
-Files:
-
-- `src/api/cart`
-
-Current behavior:
-
-- Cart is auto-created per user when needed.
-- Add, update, remove, and clear cart items.
-- Variant availability and stock are checked before cart mutations.
+- **Files**: `src/api/cart`.
+- **Mechanisms**: Resolved per user automatically. Validates item stock availability and variants constraint before completing mutations.
 
 ### Coupons
 
-Files:
+- **Files**: `src/api/coupon`, `src/api/admin/coupon`.
+- **Mechanisms**: Active customer coupon lists, and comprehensive administrative CRUD.
 
-- `src/api/coupon`
-- `src/api/admin/coupon`
+### Orders & Shipping
 
-Current behavior:
-
-- Public coupon listing returns active coupons only.
-- Admin can list, inspect, create, update, delete, and toggle coupon status.
-
-### Orders
-
-Files:
-
-- `src/api/order`
-- `src/api/admin/order`
-
-Current behavior:
-
-- Customer order creation, list, detail, cancellation, and confirm-received flow.
-- Admin order list, detail, status updates, cancellation, and status log viewing.
-
-Important notes:
-
-- Order creation currently uses request-supplied `items`; it does not automatically convert the whole cart into an order.
-- Order creation, cancellation, and status changes have coupled side effects.
-- These flows affect stock, coupon `used_count`, and order status logs together.
-- Use transactions for changes that touch multiple order-related tables.
+- **Files**: `src/api/order`, `src/api/admin/order`, `src/utils/shipment.ts`.
+- **Mechanisms**: Order checkout, order listing, admin status logs and status transitions.
+- **Shipping**: Integrates with GHN API. Shipping fees are calculated dynamically based on user address inputs (`district_id`, `ward_code`) and standard item weight profiles using `getShipmentFee`.
+- **Safety**: Changes affecting stock amounts, coupons used count, and order status log creation are performed inside safety-critical transaction (`prisma.$transaction`) blocks.
 
 ### Payments
 
-Files:
+- **Files**: `src/api/payment`, `src/utils/payment.ts`.
+- **Mechanisms**: Creates PayOS checkout URLs for bank transfer orders. Verifies Webhook (IPN) callbacks, matches signature, updates `Payments` state, and registers order payment status changes.
 
-- `src/api/payment`
+### Return Requests
 
-Current behavior:
+- **Files**: `src/api/return-request`, `src/api/admin/return-request`.
+- **Mechanisms**: Allows customers to request returns for delivered orders, specifying item condition (`good`, `damaged`, `wrong_item`) and uploading reference images to AWS S3. Admins review return requests, approving or rejecting them, which can trigger corresponding inventory adjustments.
 
-- Create MoMo payment requests for eligible orders.
-- Accept MoMo IPN callbacks.
-- Accept MoMo return callbacks.
+### Notifications
 
-Important notes:
+- **Files**: `src/api/notification`, `src/api/admin/notification`, `src/utils/notification.ts`, `src/utils/firebase.ts`.
+- **Mechanisms**:
+  - **Online Users**: Receive real-time SSE notifications streamed via Redis Pub/Sub channels (`notifications:${userId}`). Online presence is tracked in Redis via keys `markAsOnline:${userId}` with active TTL refreshes.
+  - **Offline Users**: Fallback to push notifications sent using Firebase Cloud Messaging (FCM) multicast pushes (`firebaseMessaging`). Failed/stale device tokens are automatically garbage-collected and deleted from the database.
 
-- Callback signature verification is part of the current logic.
-- Payment success updates payment records and may update the order payment status.
-- Do not change MoMo callback handling without reviewing signature generation and callback parsing together.
-
-### Admin user operations
-
-Files:
-
-- `src/api/admin/user`
-
-Current behavior:
-
-- Admin can list users, inspect details, and toggle account active state.
+---
 
 ## Integration Notes
 
-### PostgreSQL and Prisma
+### PostgreSQL & Prisma
 
-- `src/utils/prisma.ts` creates the Prisma client using `PrismaPg` and `pg.Pool`.
-- Database URL comes from `DATABASE_URL`.
-- Schema changes belong in `prisma/schema.prisma` with corresponding migrations.
+- Active client configuration in `src/utils/prisma.ts` uses `@prisma/adapter-pg`.
+- Ensure schema adjustments in `prisma/schema.prisma` have valid migrations.
 
 ### Redis
 
-- `src/utils/redis.ts` creates a Redis client from `REDIS_URL`.
-- Redis is connected at server startup in `src/server.ts`.
-- Current auth refresh-token state is not backed by Redis.
+- Used for pub/sub (SSE event loops) and key value lookups (online users tracker).
+- Connected during initialization in `src/server.ts`.
 
-### Cloudinary
+### Resend Email
 
-- Config lives in `src/utils/cloudinary.ts`.
-- Uploads are buffer-based and happen through Cloudinary, not local disk storage.
-
-### Email
-
-- Resend integration lives in `src/utils/email.ts`.
-- Verification and password-reset flows depend on `BASE_URL`, `PORT`, `FRONTEND_URL`, and optionally `MOBILE_APP_URL`.
+- Configuration in `src/utils/email.ts`.
+- Outgoing registration/forgot password links dynamically use configured environment URLs.
 
 ### Google OAuth
 
-- Google login uses `GOOGLE_CLIENT_ID`.
-- Token verification is handled server-side in `auth.service.ts`.
+- Backend client verifies token signatures from client credentials.
 
-### MoMo
+### PayOS
 
-- Payment config is read from env vars in `payment.service.ts`.
-- Keep the callback signature contract intact when touching payment flow.
+- Set up credentials in `.env` to create payment requests and verify webhook request checksums.
+
+### AWS S3
+
+- Region, buckets, and secret key tokens must be properly set up in `.env` for storage methods to operate correctly.
+
+---
 
 ## High-Risk Change Checklist
 
-### If you add or change an endpoint
+### If you modify or add endpoints
+- Always update route definitions, controller mapping, service handling, and the inline Swagger JSDoc.
+- Preserve customer and administrator authentication guards.
+- Match standard response shapes and return values.
 
-- Update the route file.
-- Update or add controller logic.
-- Update or add service logic.
-- Update the Swagger block in the route file.
-- Preserve existing auth and admin guard behavior.
-- Match the current response envelope style.
+### If you adjust database schema
+- Apply migrations or update schema safely.
+- Review impacts on numeric/monetary fields (convert with `Number(...)`).
+- Check relation deletes/cascades on dependent models.
 
-### If you change Prisma schema
+### If you alter files/storage logic
+- Verify the model stores only the S3 object key.
+- Verify return structures generate temporary presigned URLs (`getStorageUrl`).
+- Ensure S3 object cleanup on item deletion or update.
 
-- Update `prisma/schema.prisma`.
-- Add or update the migration.
-- Make sure the generated client story still matches the committed `src/generated/prisma` runtime dependency.
-- Review any impacted enum imports from both `@prisma/client` and the generated client.
+### If you change notification behavior
+- Validate SSE streams aren't blocked.
+- Ensure fallback FCM triggers correctly for offline clients.
+- Clean up invalid FCM tokens correctly on failure to prevent DB bloat.
 
-### If you change image handling
-
-- Trace where the DB stores `public_id`.
-- Trace where responses convert `public_id` into URL form.
-- Preserve cleanup behavior for replaced images.
-
-### If you change order or payment logic
-
-- Review stock updates.
-- Review coupon `used_count`.
-- Review payment record creation and updates.
-- Review order status logs.
-- Use transactions where the current logic already treats these changes as one unit of work.
+---
 
 ## Known Gaps And Gotchas
 
-- `src/middleware/error.middleware.ts` exists but is empty.
-- There is no working automated test script in `package.json`.
-- `prisma.config.ts` references `prisma/seed.ts`, but that file is missing.
-- Tooling commands are defined in repo metadata, but local execution still depends on a working Node/npm environment.
-- Swagger summaries sometimes describe behavior at a higher level than the exact implementation. Check the service layer before changing business rules.
+- **Legacy Exception Handling**: Centralized error middleware exists, but several older controllers still use standard `try/catch` and return manually formatted error responses rather than bubbling `AppError` instances. Keep consistency inside the module you are changing.
+- **Seeding Missing**: Seed execution is configured on Prisma but `prisma/seed.ts` is absent. Do not run Prisma seed commands.
+- **Test Suite**: No active automated test cases exist under `npm test`.
+
+---
 
 ## Default Expectation
 
-When changing this codebase, prefer small, architecture-consistent edits that follow the existing module boundaries and conventions instead of introducing a new pattern for one feature.
+When making edits, choose simple, localized changes that honor current file boundaries and paradigms instead of introducing custom architectures for a single module.

@@ -7,6 +7,7 @@ import {
     verifyEmailSchema,
     resendVerifyEmailSchema,
     refreshTokenSchema,
+    logoutSchema,
     forgotPasswordSchema,
     verifyResetPasswordCodeSchema,
     resetPasswordSchema,
@@ -542,6 +543,10 @@ authRouter.post('/reset-password', validate(resetPasswordSchema), authController
  *                 type: string
  *                 description: Refresh Token cần được invalidate khi đăng xuất
  *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               fcm_token:
+ *                 type: string
+ *                 description: FCM token cần xóa khỏi thiết bị khi đăng xuất, nếu có
+ *                 example: "fcm-device-token-example"
  *     responses:
  *       200:
  *         description: Đăng xuất thành công
@@ -574,7 +579,7 @@ authRouter.post('/reset-password', validate(resetPasswordSchema), authController
  *                   type: string
  *                   example: "Token không được cung cấp"
  */
-authRouter.post('/logout', Authenticate, authController.logout);
+authRouter.post('/logout', Authenticate, validate(logoutSchema), authController.logout);
 /**
  * @swagger
  * /auth/reset-password-user:

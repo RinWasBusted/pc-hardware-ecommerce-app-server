@@ -7,6 +7,8 @@ import { setupSwagger } from './config/swagger.config.js';
 import { connectRedis } from './utils/redis.js';
 import prisma from './utils/prisma.js'
 import 'dotenv/config'
+import ErrorHandler from './middleware/error.middleware.js';
+import { checkFirebaseConnect } from './utils/firebase.js';
 
 const app: Application = express();
 
@@ -38,13 +40,15 @@ const createServer = async () => {
         console.error('Failed to connect to PostgreSQL', err);
     });
 
+    await checkFirebaseConnect();
+
     app.use(cookieParser());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 
     setupSwagger(app);
 
-    app.use('/api', router);
+    app.use('/api', router, ErrorHandler);
     
     app.listen(PORT, () => {
         console.log(`API docs: ${BASE_URL}:${PORT}/api-docs`);

@@ -13,10 +13,10 @@ const router = Router();
 
 /**
  * @swagger
- * /payment/webhook:
+ * /payments/webhook:
  *   post:
- *     summary: PayOS Webhook Handler
- *     description: Webhook endpoint để nhận thông báo từ PayOS về trạng thái thanh toán. Endpoint này được PayOS gọi để cập nhật trạng thái đơn hàng khi thanh toán thay đổi.
+ *     summary: Nhận webhook thanh toán từ PayOS
+ *     description: Endpoint để PayOS gửi trạng thái thanh toán về server và đồng bộ trạng thái payment/order.
  *     tags: [Payment]
  *     requestBody:
  *       required: true
@@ -24,71 +24,117 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - code
+ *               - desc
+ *               - success
+ *               - data
+ *               - signature
  *             properties:
- *               orderCode:
- *                 type: number
- *                 description: Mã thanh toán (Payment ID)
- *                 example: 12345
- *               amount:
- *                 type: number
- *                 description: Số tiền thanh toán
- *                 example: 500000
- *               description:
- *                 type: string
- *                 description: Mô tả đơn hàng
- *                 example: "DH1-TT12345"
- *               accountNumber:
- *                 type: string
- *                 description: Số tài khoản người nhận
- *                 example: "1234567890"
- *               reference:
- *                 type: string
- *                 description: Mã tham chiếu giao dịch
- *                 example: "QR241234567"
- *               transactionDateTime:
- *                 type: string
- *                 format: date-time
- *                 description: Thời gian giao dịch
- *                 example: "2026-05-16T10:30:00Z"
- *               counterAccountBankId:
- *                 type: string
- *                 description: ID ngân hàng của người gửi
- *                 example: "VCOMBANK"
- *               counterAccountBankName:
- *                 type: string
- *                 description: Tên ngân hàng của người gửi
- *                 example: "Ngân hàng Việt Cộng Hòa"
- *               counterAccountName:
- *                 type: string
- *                 description: Tên tài khoản người gửi
- *                 example: "NGUYEN VAN A"
- *               counterAccountNumber:
- *                 type: string
- *                 description: Số tài khoản người gửi
- *                 example: "9876543210"
- *               virtualAccountName:
- *                 type: string
- *                 description: Tên tài khoản ảo
- *                 example: "PC HARDWARE STORE"
- *               virtualAccountNumber:
- *                 type: string
- *                 description: Số tài khoản ảo
- *                 example: "1234567890"
  *               code:
  *                 type: string
- *                 description: Mã trạng thái
+ *                 description: Mã phản hồi của PayOS cho webhook.
  *                 example: "00"
- *               message:
+ *               desc:
  *                 type: string
- *                 description: Thông báo trạng thái
- *                 example: "Success"
+ *                 description: Mô tả phản hồi webhook từ PayOS.
+ *                 example: "success"
+ *               success:
+ *                 type: boolean
+ *                 description: Kết quả xử lý webhook phía PayOS.
+ *                 example: true
+ *               data:
+ *                 type: object
+ *                 required:
+ *                   - orderCode
+ *                   - amount
+ *                   - description
+ *                   - accountNumber
+ *                   - reference
+ *                   - transactionDateTime
+ *                   - currency
+ *                   - paymentLinkId
+ *                   - code
+ *                   - desc
+ *                 properties:
+ *                   orderCode:
+ *                     type: integer
+ *                     description: Mã payment nội bộ được truyền sang PayOS.
+ *                     example: 12345
+ *                   amount:
+ *                     type: number
+ *                     description: Số tiền giao dịch.
+ *                     example: 500000
+ *                   description:
+ *                     type: string
+ *                     description: Nội dung thanh toán.
+ *                     example: "DH1-TT12345"
+ *                   accountNumber:
+ *                     type: string
+ *                     description: Số tài khoản nhận tiền.
+ *                     example: "1234567890"
+ *                   reference:
+ *                     type: string
+ *                     description: Mã tham chiếu giao dịch.
+ *                     example: "FT25123456789"
+ *                   transactionDateTime:
+ *                     type: string
+ *                     format: date-time
+ *                     description: Thời gian phát sinh giao dịch.
+ *                     example: "2026-05-20T10:30:00Z"
+ *                   currency:
+ *                     type: string
+ *                     description: Loại tiền tệ.
+ *                     example: "VND"
+ *                   paymentLinkId:
+ *                     type: string
+ *                     description: ID payment link phía PayOS.
+ *                     example: "plink_123456"
+ *                   code:
+ *                     type: string
+ *                     description: Mã trạng thái giao dịch trong `data`.
+ *                     example: "00"
+ *                   desc:
+ *                     type: string
+ *                     description: Mô tả trạng thái giao dịch trong `data`.
+ *                     example: "Thành công"
+ *                   counterAccountBankId:
+ *                     type: string
+ *                     nullable: true
+ *                     description: Mã ngân hàng tài khoản chuyển tiền.
+ *                     example: "VCB"
+ *                   counterAccountBankName:
+ *                     type: string
+ *                     nullable: true
+ *                     description: Tên ngân hàng tài khoản chuyển tiền.
+ *                     example: "Vietcombank"
+ *                   counterAccountName:
+ *                     type: string
+ *                     nullable: true
+ *                     description: Tên chủ tài khoản chuyển tiền.
+ *                     example: "NGUYEN VAN A"
+ *                   counterAccountNumber:
+ *                     type: string
+ *                     nullable: true
+ *                     description: Số tài khoản chuyển tiền.
+ *                     example: "9876543210"
+ *                   virtualAccountName:
+ *                     type: string
+ *                     nullable: true
+ *                     description: Tên tài khoản ảo.
+ *                     example: "PC HARDWARE STORE"
+ *                   virtualAccountNumber:
+ *                     type: string
+ *                     nullable: true
+ *                     description: Số tài khoản ảo.
+ *                     example: "0123456789"
  *               signature:
  *                 type: string
- *                 description: Chữ ký HMAC để xác minh webhook
- *                 example: "sig_12345..."
+ *                 description: Chữ ký dùng để xác minh webhook.
+ *                 example: "2a8dfc64d1f5..."
  *     responses:
  *       200:
- *         description: Webhook xử lý thành công
+ *         description: Webhook được xác minh và đồng bộ trạng thái thành công
  *         content:
  *           application/json:
  *             schema:
@@ -101,25 +147,21 @@ const router = Router();
  *                   type: object
  *                   properties:
  *                     order_id:
- *                       type: number
- *                       description: ID đơn hàng
+ *                       type: integer
  *                       example: 1
  *                     payment_id:
- *                       type: number
- *                       description: ID giao dịch thanh toán
+ *                       type: integer
  *                       example: 12345
  *                     payment_status:
  *                       type: string
  *                       enum: [pending, success, failed]
- *                       description: Trạng thái thanh toán
  *                       example: "success"
  *                     payosStatus:
  *                       type: string
  *                       enum: [PENDING, PROCESSING, PAID, FAILED, CANCELLED, EXPIRED, UNDERPAID]
- *                       description: Trạng thái từ PayOS
  *                       example: "PAID"
  *       400:
- *         description: Lỗi xử lý webhook
+ *         description: Webhook không hợp lệ hoặc không thể xử lý
  *         content:
  *           application/json:
  *             schema:
@@ -130,28 +172,28 @@ const router = Router();
  *                   example: false
  *                 message:
  *                   type: string
- *                   description: Mô tả lỗi
  *                   example: "orderCode PayOS không hợp lệ"
  */
 router.post('/webhook', webhook);
 
 /**
  * @swagger
- * /payment/orders/{orderId}:
+ * /payments/orders/{orderId}:
  *   post:
- *     summary: Tạo Payment Link từ PayOS
- *     description: Tạo link thanh toán PayOS cho đơn hàng. Yêu cầu user đã đăng nhập (Authenticate). Đơn hàng phải sử dụng phương thức thanh toán chuyển khoản và chưa được thanh toán.
+ *     summary: Tạo payment link PayOS cho đơn hàng
+ *     description: Tạo link thanh toán cho đơn hàng của người dùng đang đăng nhập. Chỉ áp dụng cho đơn hàng dùng `bank_transfer` và chưa thanh toán.
  *     tags: [Payment]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: orderId
  *         required: true
+ *         description: ID đơn hàng cần tạo payment link.
  *         schema:
- *           type: number
- *         description: ID của đơn hàng cần thanh toán
- *         example: 1
+ *           type: integer
+ *           minimum: 1
+ *           example: 1
  *     responses:
  *       201:
  *         description: Tạo payment link thành công
@@ -167,91 +209,60 @@ router.post('/webhook', webhook);
  *                   type: object
  *                   properties:
  *                     payment_id:
- *                       type: number
- *                       description: ID giao dịch thanh toán vừa tạo
+ *                       type: integer
+ *                       description: ID payment được tạo trong hệ thống.
  *                       example: 12345
  *                     order_id:
- *                       type: number
- *                       description: ID đơn hàng
+ *                       type: integer
+ *                       description: ID đơn hàng tương ứng.
  *                       example: 1
  *                     paymentUrl:
  *                       type: string
  *                       format: uri
- *                       description: URL checkout trên PayOS để người dùng thanh toán
- *                       example: "https://pay.payos.vn/checkout?token=abc123xyz..."
+ *                       description: Link thanh toán để chuyển người dùng sang PayOS.
+ *                       example: "https://pay.payos.vn/web/123456789"
  *                     paymentData:
  *                       type: object
- *                       description: Chi tiết thông tin thanh toán từ PayOS
+ *                       description: Dữ liệu chi tiết do PayOS trả về.
  *                       properties:
- *                         id:
+ *                         bin:
  *                           type: string
- *                           description: Payment link ID từ PayOS
- *                           example: "pl_12345"
- *                         orderCode:
- *                           type: number
- *                           description: Order code
- *                           example: 12345
+ *                           example: "970436"
+ *                         accountNumber:
+ *                           type: string
+ *                           example: "1234567890"
+ *                         accountName:
+ *                           type: string
+ *                           example: "PC HARDWARE STORE"
  *                         amount:
  *                           type: number
- *                           description: Số tiền
  *                           example: 500000
- *                         amountPaid:
- *                           type: number
- *                           description: Số tiền đã thanh toán
- *                           example: 0
- *                         amountRemaining:
- *                           type: number
- *                           description: Số tiền còn lại
- *                           example: 500000
+ *                         description:
+ *                           type: string
+ *                           example: "DH1-TT12345"
+ *                         orderCode:
+ *                           type: integer
+ *                           example: 12345
+ *                         currency:
+ *                           type: string
+ *                           example: "VND"
+ *                         paymentLinkId:
+ *                           type: string
+ *                           example: "plink_123456"
  *                         status:
  *                           type: string
  *                           enum: [PENDING, PROCESSING, PAID, FAILED, CANCELLED, EXPIRED, UNDERPAID]
- *                           description: Trạng thái thanh toán
  *                           example: "PENDING"
- *                         createdAt:
- *                           type: string
- *                           format: date-time
- *                           description: Thời gian tạo
- *                           example: "2026-05-16T10:30:00Z"
- *                         expiredAt:
- *                           type: string
- *                           format: date-time
- *                           description: Thời gian hết hạn
- *                           example: "2026-05-23T10:30:00Z"
  *                         checkoutUrl:
  *                           type: string
  *                           format: uri
- *                           description: URL checkout
- *                           example: "https://pay.payos.vn/checkout?token=abc123xyz..."
- *                         transactions:
- *                           type: array
- *                           description: Danh sách các giao dịch
- *                           items:
- *                             type: object
- *                             properties:
- *                               reference:
- *                                 type: string
- *                                 description: Mã tham chiếu giao dịch
- *                                 example: "QR241234567"
- *                               amount:
- *                                 type: number
- *                                 description: Số tiền giao dịch
- *                                 example: 500000
- *                               accountNumber:
- *                                 type: string
- *                                 description: Số tài khoản
- *                                 example: "1234567890"
- *                               description:
- *                                 type: string
- *                                 description: Mô tả giao dịch
- *                                 example: "DH1-TT12345"
- *                               transactionDateTime:
- *                                 type: string
- *                                 format: date-time
- *                                 description: Thời gian giao dịch
- *                                 example: "2026-05-16T11:00:00Z"
+ *                           example: "https://pay.payos.vn/web/123456789"
+ *                         qrCode:
+ *                           type: string
+ *                           description: Dữ liệu QR do PayOS trả về.
+ *                           example: "000201010212..."
  *       400:
- *         description: Lỗi tạo payment link
+ *         description: Không thể tạo payment link
  *         content:
  *           application/json:
  *             schema:
@@ -262,15 +273,19 @@ router.post('/webhook', webhook);
  *                   example: false
  *                 message:
  *                   type: string
- *                   description: Mô tả lỗi
  *                   examples:
- *                     - "Đơn hàng không tồn tại"
- *                     - "Đơn hàng không sử dụng phương thức thanh toán chuyển khoản"
- *                     - "Đơn hàng đã được thanh toán"
- *                     - "Đơn hàng đã bị hủy hoặc thất bại"
- *                     - "Không thể tạo thanh toán PayOS"
+ *                     order_not_found:
+ *                       value: "Đơn hàng không tồn tại"
+ *                     invalid_method:
+ *                       value: "Đơn hàng không sử dụng phương thức thanh toán chuyển khoản"
+ *                     already_paid:
+ *                       value: "Đơn hàng đã được thanh toán"
+ *                     cancelled_order:
+ *                       value: "Đơn hàng đã bị hủy hoặc thất bại"
+ *                     gateway_error:
+ *                       value: "Không thể tạo thanh toán PayOS"
  *       401:
- *         description: Không được xác thực hoặc người dùng ID không hợp lệ
+ *         description: Người dùng chưa đăng nhập hoặc token không hợp lệ
  *         content:
  *           application/json:
  *             schema:
@@ -281,7 +296,11 @@ router.post('/webhook', webhook);
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Không xác định được người dùng"
+ *                   examples:
+ *                     missing_token:
+ *                       value: "Token không được cung cấp"
+ *                     invalid_token:
+ *                       value: "Token không hợp lệ hoặc đã hết hạn"
  */
 router.post('/orders/:orderId', Authenticate, createPayment);
 

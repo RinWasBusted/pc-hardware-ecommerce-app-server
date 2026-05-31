@@ -1,6 +1,6 @@
 import { prisma } from '../../../utils/prisma.js';
 import { getStorageUrl } from '../../../utils/storage.js';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, Role } from '@prisma/client';
 
 export type AdminOrderListFilters = {
 	status?: string;
@@ -33,6 +33,19 @@ type OrderItemRow = {
 	};
 };
 
+type OrderStatusLogRow = {
+	id: number;
+	old_status: OrderStatus;
+	new_status: OrderStatus;
+	note: string | null;
+	changed_at: Date;
+	admin: {
+		id: number;
+		full_name: string;
+		role: Role;
+	} | null;
+};
+
 const mapOrderItems = (items: OrderItemRow[]) => {
 	return Promise.all(items.map(async (item) => {
 		const variant = item.product_variant;
@@ -60,6 +73,23 @@ const mapOrderItems = (items: OrderItemRow[]) => {
 			},
 			image_url: variantImage ? await getStorageUrl(variantImage) : null,
 		};
+	}));
+};
+
+const mapOrderTimeline = (logs: OrderStatusLogRow[]) => {
+	return logs.map((log) => ({
+		id: log.id,
+		old_status: log.old_status,
+		new_status: log.new_status,
+		note: log.note,
+		changed_at: log.changed_at,
+		changed_by: log.admin
+			? {
+				id: log.admin.id,
+				full_name: log.admin.full_name,
+				role: log.admin.role,
+			}
+			: null,
 	}));
 };
 
@@ -185,6 +215,9 @@ export const GetAdminOrderDetail = async (orderId: number) => {
 					district: true,
 					ward: true,
 					street: true,
+					province_id: true,
+					district_id: true,
+					ward_code: true,
 				},
 			},
 			coupon: {
@@ -231,12 +264,31 @@ export const GetAdminOrderDetail = async (orderId: number) => {
 					},
 				},
 			},
+			order_status_logs: {
+				orderBy: { changed_at: 'asc' },
+				select: {
+					id: true,
+					old_status: true,
+					new_status: true,
+					note: true,
+					changed_at: true,
+					admin: {
+						select: {
+							id: true,
+							full_name: true,
+							role: true,
+						},
+					},
+				},
+			},
 		},
 	});
 
 	if (!order) {
 		throw new Error('Đơn hàng không tồn tại');
 	}
+
+	const timeline = mapOrderTimeline(order.order_status_logs as OrderStatusLogRow[]);
 
 	return {
 		id: order.id,
@@ -264,7 +316,8 @@ export const GetAdminOrderDetail = async (orderId: number) => {
 					: null,
 			}
 			: null,
-		items: mapOrderItems(order.order_items as OrderItemRow[]),
+		items: await mapOrderItems(order.order_items as OrderItemRow[]),
+		timeline,
 	};
 };
 
@@ -480,18 +533,5 @@ export const GetAdminOrderStatusLogs = async (orderId: number) => {
 		},
 	});
 
-	return logs.map((log) => ({
-		id: log.id,
-		old_status: log.old_status,
-		new_status: log.new_status,
-		note: log.note,
-		changed_at: log.changed_at,
-		changed_by: log.admin
-			? {
-				id: log.admin.id,
-				full_name: log.admin.full_name,
-				role: log.admin.role,
-			}
-			: null,
-	}));
+	return mapOrderTimeline(logs as OrderStatusLogRow[]);
 };

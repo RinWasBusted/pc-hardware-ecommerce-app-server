@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output = "../src/generated/prisma"
+  // output = "../src/generated/prisma"
 }
 
 datasource db {
@@ -40,7 +40,8 @@ model User {
   order_status_logs OrderStatusLogs[]
   reviews Reviews[]
   wishlists Wishlists[]
-  notifications Notifications[]
+  user_notifications UserNotifications[]
+  user_fcm_tokens    UserFcmTokens[]
   return_requests ReturnRequests[]
 }
 
@@ -102,6 +103,8 @@ model Products {
   brand_id Int
   specifications Json?
   status ProductStatus @default(available)
+  avg_rating Decimal @default(0)
+  total_reviews Int @default(0)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -247,7 +250,6 @@ model Orders {
   order_items OrderItems[]
   order_status_logs OrderStatusLogs[]
   payments Payments[]
-  reviews Reviews[]
   return_requests ReturnRequests[]
 
   user User @relation(fields: [user_id], references: [id])
@@ -264,6 +266,7 @@ model OrderItems {
   subtotal Decimal
 
   return_items ReturnItems[]
+  reviews Reviews[]
 
   order Orders @relation(fields: [order_id], references: [id])
   product_variant ProductVariants @relation(fields: [variant_id], references: [id])
@@ -308,16 +311,23 @@ model Reviews {
   user_id Int
   product_id Int
   variant_id Int
-  order_id Int
+  order_item_id Int
   rating Int
   comment String?
+  is_edited Boolean @default(false)
+  edit_count Int @default(0)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   user User @relation(fields: [user_id], references: [id])
   product Products @relation(fields: [product_id], references: [id])
   variant ProductVariants @relation(fields: [variant_id], references: [id])
-  order Orders @relation(fields: [order_id], references: [id])
+  order_item OrderItems @relation(fields: [order_item_id], references: [id])
+  images ReviewImages[]
+
+  @@unique([order_item_id, variant_id])
+  @@index([product_id, created_at(sort: Desc)])
+  @@index([variant_id, created_at(sort: Desc)])
 }
 
 model Wishlists {
@@ -339,15 +349,47 @@ enum NotificationType {
 }
 
 model Notifications {
-  id Int @id @default(autoincrement())
-  user_id Int?
-  title String
-  body String
-  type NotificationType
-  is_read Boolean @default(false)
-  created_at DateTime @default(now())
+  id         Int              @id @default(autoincrement())
+  title      String
+  body       String
+  type       NotificationType
+  metadata   Json?
+  created_at DateTime         @default(now())
 
-  user User? @relation(fields: [user_id], references: [id])
+  user_notifications UserNotifications[]
+}
+
+model UserNotifications {
+  id              Int       @id @default(autoincrement())
+  user_id         Int
+  notification_id Int
+  is_read         Boolean   @default(false)
+  read_at         DateTime?
+  created_at      DateTime  @default(now())
+
+  user         User          @relation(fields: [user_id], references: [id])
+  notification Notifications @relation(fields: [notification_id], references: [id])
+
+  @@index([user_id, is_read])
+}
+
+enum DevicePlatform {
+  android
+  ios
+  web
+}
+
+model UserFcmTokens {
+  id          Int            @id @default(autoincrement())
+  user_id     Int
+  token       String         @unique
+  device_type DevicePlatform
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
 }
 
 model Banners {
@@ -407,4 +449,12 @@ model ReturnImages {
   image_url String
 
   return_request ReturnRequests @relation(fields: [return_request_id], references: [id])
+}
+
+model ReviewImages {
+  id Int @id @default(autoincrement())
+  review_id Int
+  image_url String
+
+  review Reviews @relation(fields: [review_id], references: [id])
 }

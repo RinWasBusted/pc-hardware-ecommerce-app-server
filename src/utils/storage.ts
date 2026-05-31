@@ -35,6 +35,16 @@ async function uploadToStorage (file: Express.Multer.File, folder:string = 'unde
     }
 }
 
+async function uploadManyToStorage (files: Express.Multer.File[], folder: string = 'undefined') {
+    try {
+        const imageKeys = await Promise.all(files.map((file) => uploadToStorage(file, folder)));
+
+        return imageKeys;
+    } catch (error) {
+        throw new Error(`Failed to upload files: ${error}`);
+    }
+}
+
 async function deleteFromStorage (key: string) {
     try {
         const deleteParams = {
@@ -47,6 +57,15 @@ async function deleteFromStorage (key: string) {
         return true;
     } catch (error) {
         throw new Error(`Failed to delete file: ${error}`);
+    }
+}
+
+async function deleteManyFromStorage (keys: string[]) {
+    try {
+        await Promise.all(keys.map((key) => deleteFromStorage(key)));
+        return true;
+    } catch (error) {
+        throw new Error(`Failed to delete files: ${error}`);
     }
 }
 
@@ -64,4 +83,4 @@ async function getStorageUrl(key: string) {
 }
 
 
-export { uploadToStorage, deleteFromStorage, getStorageUrl };
+export { uploadToStorage, uploadManyToStorage, deleteFromStorage, deleteManyFromStorage, getStorageUrl };
