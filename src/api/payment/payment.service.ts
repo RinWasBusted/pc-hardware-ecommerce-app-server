@@ -250,16 +250,19 @@ export interface GetPaymentsFilters {
 	limit: number;
 	payment_status?: PaymentStatus;
 	method?: PaymentMethod;
+	user_id?: number;
 }
 
-export const GetPayments = async (userId: number, filters: GetPaymentsFilters) => {
-	const { page, limit, payment_status, method } = filters;
+export const GetPayments = async (filters: GetPaymentsFilters) => {
+	const { page, limit, payment_status, method, user_id } = filters;
 
-	const where: any = {
-		order: {
-			user_id: userId,
-		},
-	};
+	const where: any = {};
+
+	if (user_id !== undefined) {
+		where.order = {
+			user_id,
+		};
+	}
 
 	if (payment_status) {
 		where.payment_status = payment_status;
@@ -282,6 +285,13 @@ export const GetPayments = async (userId: number, filters: GetPaymentsFilters) =
 						id: true,
 						total: true,
 						order_status: true,
+						user: {
+							select: {
+								id: true,
+								full_name: true,
+								email: true,
+							},
+						},
 					},
 				},
 			},
@@ -302,6 +312,11 @@ export const GetPayments = async (userId: number, filters: GetPaymentsFilters) =
 			id: payment.order.id,
 			total: Number(payment.order.total),
 			order_status: payment.order.order_status,
+			user: payment.order.user ? {
+				id: payment.order.user.id,
+				full_name: payment.order.user.full_name,
+				email: payment.order.user.email,
+			} : undefined,
 		},
 	}));
 
