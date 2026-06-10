@@ -74,8 +74,8 @@ export const CreateReturnRequest = async (data: {
 				throw new Error('Đơn hàng không tồn tại');
 			}
 
-			if (order.order_status !== 'delivered') {
-				throw new Error('Chỉ có thể tạo yêu cầu trả hàng cho đơn hàng đã giao');
+			if (order.order_status !== 'delivered' && order.order_status !== 'received') {
+				throw new Error('Chỉ có thể tạo yêu cầu trả hàng cho đơn hàng đã giao hoặc đã nhận');
 			}
 
 			const orderItemIds = data.items.map((item) => item.order_item_id);

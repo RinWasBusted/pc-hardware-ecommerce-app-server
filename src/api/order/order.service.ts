@@ -640,7 +640,7 @@ export const ConfirmOrderReceived = async (userId: number, orderId: number) => {
 		await tx.orders.update({
 			where: { id: order.id },
 			data: {
-				order_status: 'delivered',
+				order_status: 'received',
 			},
 		});
 
@@ -649,7 +649,7 @@ export const ConfirmOrderReceived = async (userId: number, orderId: number) => {
 				order_id: order.id,
 				changed_by: userId,
 				old_status: 'delivered',
-				new_status: 'delivered',
+				new_status: 'received',
 				note: 'Khách xác nhận đã nhận hàng',
 			},
 		});

@@ -446,8 +446,8 @@ export const CancelAdminOrder = async (orderId: number, adminId: number, reason:
 			throw new Error('Đơn hàng đã bị hủy');
 		}
 
-		if (order.order_status === 'delivered') {
-			throw new Error('Không thể hủy đơn hàng đã giao');
+		if (order.order_status === 'delivered' || order.order_status === 'received') {
+			throw new Error('Không thể hủy đơn hàng đã giao hoặc đã nhận');
 		}
 
 		const orderItems = await tx.orderItems.findMany({

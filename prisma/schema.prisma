@@ -226,6 +226,7 @@ enum OrderStatus {
   packed
   shipping
   delivered
+  received
   failed
   cancelled
 }

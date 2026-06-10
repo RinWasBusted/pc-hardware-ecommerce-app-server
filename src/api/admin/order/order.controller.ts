@@ -14,6 +14,7 @@ const ORDER_STATUSES = new Set([
 	'packed',
 	'shipping',
 	'delivered',
+	'received',
 	'failed',
 	'cancelled',
 ]);
@@ -26,6 +27,7 @@ const STATUS_UPDATE_ALLOWED = new Set([
 	'packed',
 	'shipping',
 	'delivered',
+	'received',
 	'failed',
 	'cancelled',
 ]);

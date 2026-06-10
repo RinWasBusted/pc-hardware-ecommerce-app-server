@@ -36,6 +36,7 @@ export const createReview = async (
 			order: {
 				select: {
 					user_id: true,
+					order_status: true,
 					payments: {
 						select: {
 							paid_at: true,
@@ -58,6 +59,11 @@ export const createReview = async (
 
 	if (orderItem.order.user_id !== userId) {
 		throw new AppError('Bạn không có quyền đánh giá sản phẩm này', 403);
+	}
+
+	// Check if order has been received
+	if (orderItem.order.order_status !== 'received') {
+		throw new AppError('Chỉ có thể đánh giá sản phẩm của đơn hàng đã nhận', 400);
 	}
 
 	// Check if order has been paid
@@ -205,6 +211,7 @@ export const editReview = async (
 				select: {
 					order: {
 						select: {
+							order_status: true,
 							payments: {
 								select: { paid_at: true },
 								where: { payment_status: 'success' },
@@ -225,6 +232,11 @@ export const editReview = async (
 
 	if (review.user_id !== userId) {
 		throw new AppError('Bạn không có quyền chỉnh sửa đánh giá này', 403);
+	}
+
+	// Check if order has been received
+	if (review.order_item.order.order_status !== 'received') {
+		throw new AppError('Chỉ có thể chỉnh sửa đánh giá của đơn hàng đã nhận', 400);
 	}
 
 	const successPayment = review.order_item.order.payments[0];
@@ -336,7 +348,7 @@ export const getUnreviewedPaidOrderItems = async (userId: number) => {
 		where: {
 			order: {
 				user_id: userId,
-				payment_status: 'paid',
+				order_status: 'received',
 				payments: {
 					some: {
 						payment_status: 'success',
