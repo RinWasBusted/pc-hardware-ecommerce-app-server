@@ -130,7 +130,7 @@ router.get('/', GetAdminOrdersController);
  *                       example: paid
  *                     order_status:
  *                       type: string
- *                       enum: [pending, confirmed, preparing, packed, shipping, delivered, failed, cancelled]
+ *                       enum: [pending, confirmed, preparing, packed, shipping, delivered, received, failed, cancelled]
  *                       example: confirmed
  *                     cancel_reason:
  *                       type: string
@@ -240,10 +240,10 @@ router.get('/', GetAdminOrdersController);
  *                             type: integer
  *                           old_status:
  *                             type: string
- *                             enum: [pending, confirmed, preparing, packed, shipping, delivered, failed, cancelled]
+ *                             enum: [pending, confirmed, preparing, packed, shipping, delivered, received, failed, cancelled]
  *                           new_status:
  *                             type: string
- *                             enum: [pending, confirmed, preparing, packed, shipping, delivered, failed, cancelled]
+ *                             enum: [pending, confirmed, preparing, packed, shipping, delivered, received, failed, cancelled]
  *                           note:
  *                             type: string
  *                             nullable: true

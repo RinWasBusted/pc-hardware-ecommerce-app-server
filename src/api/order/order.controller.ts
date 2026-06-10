@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { CancelOrder, ConfirmOrderReceived, CreateOrder, GetMyOrders, GetOrderDetail, GetOrderShipmentFee, type OrderItemInput } from './order.service.js';
 
 const PAYMENT_METHODS = new Set(['cod', 'bank_transfer']);
-const ORDER_STATUSES = new Set(['pending', 'confirmed', 'preparing', 'packed', 'shipping', 'delivered', 'failed', 'cancelled']);
+const ORDER_STATUSES = new Set(['pending', 'confirmed', 'preparing', 'packed', 'shipping', 'delivered', 'received', 'failed', 'cancelled']);
 const PAYMENT_STATUSES = new Set(['unpaid', 'paid', 'refunded']);
 
 export const CreateOrderController = async (req: Request, res: Response) => {

@@ -1,4 +1,5 @@
 import { prisma } from '../../utils/prisma.js';
+import { PaymentStatus, PaymentMethod } from '@prisma/client';
 import {
 	createPayOSPaymentLink,
 	getPayOSPaymentLink,
@@ -242,4 +243,90 @@ export const HandlePayOSWebhook = async (payload: PayOSWebhookPayload) => {
 			payosStatus: nextStatus,
 		};
 	});
+};
+
+export interface GetPaymentsFilters {
+	page: number;
+	limit: number;
+	payment_status?: PaymentStatus;
+	method?: PaymentMethod;
+	user_id?: number;
+}
+
+export const GetPayments = async (filters: GetPaymentsFilters) => {
+	const { page, limit, payment_status, method, user_id } = filters;
+
+	const where: any = {};
+
+	if (user_id !== undefined) {
+		where.order = {
+			user_id,
+		};
+	}
+
+	if (payment_status) {
+		where.payment_status = payment_status;
+	}
+
+	if (method) {
+		where.method = method;
+	}
+
+	const [total, payments] = await Promise.all([
+		prisma.payments.count({ where }),
+		prisma.payments.findMany({
+			where,
+			orderBy: { created_at: 'desc' },
+			skip: (page - 1) * limit,
+			take: limit,
+			include: {
+				order: {
+					select: {
+						id: true,
+						total: true,
+						order_status: true,
+						user: {
+							select: {
+								id: true,
+								full_name: true,
+								email: true,
+							},
+						},
+					},
+				},
+			},
+		}),
+	]);
+
+	const items = payments.map((payment) => ({
+		id: payment.id,
+		order_id: payment.order_id,
+		method: payment.method,
+		amount: Number(payment.amount),
+		transaction_id: payment.transaction_id,
+		gateway_response: payment.gateway_response,
+		payment_status: payment.payment_status,
+		paid_at: payment.paid_at,
+		created_at: payment.created_at,
+		order: {
+			id: payment.order.id,
+			total: Number(payment.order.total),
+			order_status: payment.order.order_status,
+			user: payment.order.user ? {
+				id: payment.order.user.id,
+				full_name: payment.order.user.full_name,
+				email: payment.order.user.email,
+			} : undefined,
+		},
+	}));
+
+	return {
+		items,
+		pagination: {
+			total,
+			page,
+			limit,
+			hasMore: page * limit < total,
+		},
+	};
 };

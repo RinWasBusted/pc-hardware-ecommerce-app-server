@@ -9,6 +9,7 @@ import prisma from './utils/prisma.js'
 import 'dotenv/config'
 import ErrorHandler from './middleware/error.middleware.js';
 import { checkFirebaseConnect } from './utils/firebase.js';
+import { startOutdatedBannerHandler } from './jobs/outdatedBannerHandler.js';
 
 const app: Application = express();
 
@@ -41,6 +42,8 @@ const createServer = async () => {
     });
 
     await checkFirebaseConnect();
+
+    startOutdatedBannerHandler();
 
     app.use(cookieParser());
     app.use(express.json());

@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { CreatePayOSPayment, HandlePayOSWebhook } from './payment.service.js';
+import { PaymentStatus, PaymentMethod } from '@prisma/client';
 
 export const createPayment = async (req: Request, res: Response) => {
 	try {

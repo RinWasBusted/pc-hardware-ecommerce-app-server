@@ -18,7 +18,7 @@ router.use(Authenticate, Authorize('customer'));
  *     summary: Tạo yêu cầu trả hàng / hoàn tiền
  *     description: |
  *       Tạo yêu cầu trả hàng cho đơn hàng của chính người dùng.
- *       API hiện chỉ chấp nhận tạo yêu cầu trả hàng cho đơn hàng đã ở trạng thái `delivered`.
+ *       API hiện chỉ chấp nhận tạo yêu cầu trả hàng cho đơn hàng đã ở trạng thái `delivered` hoặc `received`.
  *       Khi gửi `multipart/form-data`, trường `items` có thể được gửi dưới dạng JSON string.
  *     tags:
  *       - Return Requests
@@ -154,7 +154,7 @@ router.use(Authenticate, Authorize('customer'));
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Chỉ có thể tạo yêu cầu trả hàng cho đơn hàng đã giao"
+ *                   example: "Chỉ có thể tạo yêu cầu trả hàng cho đơn hàng đã giao hoặc đã nhận"
  *       401:
  *         description: Chưa đăng nhập
  *         content:
