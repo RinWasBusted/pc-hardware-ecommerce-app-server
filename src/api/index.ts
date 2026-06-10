@@ -14,6 +14,7 @@ import notificationRouter from './notification/notification.route.js';
 import wishlistRouter from './wishlist/wishlist.route.js';
 import reviewRouter from './review/review.route.js'
 import bannerRouter from './banner/banner.route.js';
+import chatbotRouter from './chatbot/chatbot.route.js';
 import { Authenticate, Authorize } from '../middleware/auth.middleware.js';
 
 export const router = Router();
@@ -32,4 +33,5 @@ router.use('/return-requests', returnRequestRouter);
 router.use('/notifications', notificationRouter);
 router.use('/review', reviewRouter)
 router.use('/banners', bannerRouter);
+router.use('/chatbot', chatbotRouter);
 router.use('/admin', Authenticate, Authorize('admin'), adminRouter);
