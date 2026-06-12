@@ -265,6 +265,7 @@ model OrderItems {
   quantity Int
   unit_price Decimal
   subtotal Decimal
+  is_reviewed Boolean @default(false)
 
   return_items ReturnItems[]
   reviews Reviews[]

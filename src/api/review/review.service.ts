@@ -164,6 +164,12 @@ export const createReview = async (
 				},
 			});
 
+			// Update order item to show it has been reviewed
+			await tx.orderItems.update({
+				where: { id: orderItemId },
+				data: { is_reviewed: true },
+			});
+
 			return createdReview;
 		});
 

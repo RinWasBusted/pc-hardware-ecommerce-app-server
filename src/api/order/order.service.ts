@@ -13,6 +13,7 @@ type OrderItemRow = {
 	quantity: number;
 	unit_price: any;
 	subtotal: any;
+	is_reviewed: boolean;
 	product_variant: {
 		id: number;
 		sku: string;
@@ -108,6 +109,7 @@ const mapOrderItems = async (items: OrderItemRow[]) => {
 			quantity: item.quantity,
 			unit_price: Number(item.unit_price),
 			subtotal: Number(item.subtotal),
+			is_reviewed: item.is_reviewed,
 			product: {
 				id: variant.product.id,
 				name: variant.product.name,
@@ -353,6 +355,7 @@ export const GetMyOrders = async (
 					quantity: true,
 					unit_price: true,
 					subtotal: true,
+					is_reviewed: true,
 					product_variant: {
 						select: {
 							id: true,
@@ -449,6 +452,7 @@ export const GetOrderDetail = async (userId: number, orderId: number) => {
 					quantity: true,
 					unit_price: true,
 					subtotal: true,
+					is_reviewed: true,
 					product_variant: {
 						select: {
 							id: true,
