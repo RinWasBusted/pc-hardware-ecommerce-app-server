@@ -205,7 +205,7 @@ export async function sendNotification(user_ids: number[], data: NotificationPay
     }
 
     if(offlineUserIds.length > 0) {
-        const tokens = await prisma.userFcmTokens.findMany({
+        const userFcmTokens = await prisma.userFcmTokens.findMany({
             where: {
                 user_id: {
                     in: offlineUserIds,
@@ -213,16 +213,20 @@ export async function sendNotification(user_ids: number[], data: NotificationPay
             },
             select: {
                 token: true,
+                user_id: true,
             }
-        }).then(results => results.map(r => r.token));
+        });
 
-        if(tokens.length > 0) {
-            const response = await firebaseMessaging.sendEachForMulticast({
-                tokens,
-                data: {
-                    notification: stringData
-                }
-            });
+        if(userFcmTokens.length > 0) {
+            const response = await firebaseMessaging.sendEach(
+                userFcmTokens.map(item => ({
+                    token: item.token,
+                    data: {
+                        notification: stringData,
+                        user_id: String(item.user_id),
+                    }
+                }))
+            );
 
             if(response.failureCount > 0) {
                 const failedTokens: string[] = [];
@@ -230,7 +234,7 @@ export async function sendNotification(user_ids: number[], data: NotificationPay
                     if (!resp.success && resp.error) {
                         const code = resp.error.code;
                         if (code === 'messaging/invalid-registration-token' || code === 'messaging/registration-token-not-registered') {
-                            failedTokens.push(tokens[idx] || '');
+                            failedTokens.push(userFcmTokens[idx]?.token || '');
                         }
                     }
                 });
