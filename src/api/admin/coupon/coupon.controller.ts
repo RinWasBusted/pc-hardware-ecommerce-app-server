@@ -4,10 +4,8 @@ import * as couponService from './coupon.service.js';
 
 export const ListCouponsController = async (req: Request, res: Response) => {
 	try {
-		const isActiveRaw = req.query.is_active as string | undefined;
-		const isActive = isActiveRaw ? isActiveRaw.toLowerCase() === 'true' : undefined;
 
-		const coupons = await couponService.ListCoupons(isActive);
+		const coupons = await couponService.ListCoupons(true);
 
 		return res.status(200).json({
 			success: true,
