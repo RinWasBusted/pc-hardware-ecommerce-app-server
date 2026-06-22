@@ -1,6 +1,7 @@
 import { prisma } from '../../../utils/prisma.js';
 import { getStorageUrl } from '../../../utils/storage.js';
-import { OrderStatus, Role } from '@prisma/client';
+import { OrderStatus, Role, NotificationType } from '@prisma/client';
+import { createNotification } from '../../notification/notification.service.js';
 
 export type AdminOrderListFilters = {
 	status?: string;
@@ -332,6 +333,7 @@ export const UpdateAdminOrderStatus = async (
 			where: { id: orderId },
 			select: {
 				id: true,
+				user_id: true,
 				order_status: true,
 				payment_method: true,
 				payment_status: true,
@@ -423,6 +425,32 @@ export const UpdateAdminOrderStatus = async (
 			},
 		});
 
+		// Gửi thông báo cập nhật trạng thái đơn hàng cho người dùng
+		if (order.user_id) {
+			const statusTranslations: Record<OrderStatus, string> = {
+				[OrderStatus.pending]: 'đang chờ xử lý',
+				[OrderStatus.failed]: 'thất bại',
+				[OrderStatus.preparing]: 'đang chuẩn bị',
+				[OrderStatus.packed]: 'đã đóng gói',
+				[OrderStatus.confirmed]: 'đã xác nhận',
+				[OrderStatus.shipping]: 'đang giao hàng',
+				[OrderStatus.delivered]: 'đã giao hàng',
+				[OrderStatus.received]: 'đã nhận hàng',
+				[OrderStatus.cancelled]: 'đã hủy',
+			};
+			const statusText = statusTranslations[newStatus as OrderStatus] || newStatus;
+			
+			createNotification(
+				[order.user_id],
+				NotificationType.order,
+				'Cập nhật đơn hàng',
+				`Đơn hàng #${order.id} của bạn đã thay đổi trạng thái sang ${statusText}.`,
+				{ order_id: order.id, status: newStatus }
+			).catch((err) => {
+				console.error('Lỗi khi gửi thông báo cập nhật đơn hàng:', err);
+			});
+		}
+
 		return updated;
 	});
 };
@@ -433,6 +461,7 @@ export const CancelAdminOrder = async (orderId: number, adminId: number, reason:
 			where: { id: orderId },
 			select: {
 				id: true,
+				user_id: true,
 				order_status: true,
 				coupon_id: true,
 			},
@@ -485,6 +514,19 @@ export const CancelAdminOrder = async (orderId: number, adminId: number, reason:
 				note: reason,
 			},
 		});
+
+		// Gửi thông báo hủy đơn hàng cho người dùng
+		if (order.user_id) {
+			createNotification(
+				[order.user_id],
+				NotificationType.order,
+				'Đơn hàng đã bị hủy',
+				`Đơn hàng #${order.id} của bạn đã bị hủy bởi quản trị viên. Lý do: ${reason}`,
+				{ order_id: order.id, status: 'cancelled' }
+			).catch((err) => {
+				console.error('Lỗi khi gửi thông báo hủy đơn hàng:', err);
+			});
+		}
 
 		if (order.coupon_id) {
 			const coupon = await tx.coupons.findUnique({
