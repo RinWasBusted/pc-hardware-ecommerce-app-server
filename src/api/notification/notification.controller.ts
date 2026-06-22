@@ -84,24 +84,24 @@ export async function streamNotifications (req: Request, res: Response) {
     }, 1000 * 45); // Refresh every 45 seconds to ensure the user stays marked as online
 
     // Uncomment the following block for testing SSE with dummy data.
-    let cnt = 1;
-    const intervalId = setInterval(() => {
-      notificationService.sendNotification([userId], {
-        id: cnt,
-        title: `Notification ${cnt}`,
-        body: `This is notification number ${cnt}`,
-        type: "order",
-        metadata: {
-          orderId: 123,
-          status: "shipped"
-        },
-        created_at: new Date().toISOString(),
-      });
-      cnt++;
-    }, 2000);
+    // let cnt = 1;
+    // const intervalId = setInterval(() => {
+    //   notificationService.sendNotification([userId], {
+    //     id: cnt,
+    //     title: `Notification ${cnt}`,
+    //     body: `This is notification number ${cnt}`,
+    //     type: "order",
+    //     metadata: {
+    //       orderId: 123,
+    //       status: "shipped"
+    //     },
+    //     created_at: new Date().toISOString(),
+    //   });
+    //   cnt++;
+    // }, 2000);
 
     req.on("close", async () => {
-      clearInterval(intervalId);
+    //   clearInterval(intervalId);
       clearInterval(refreshIntervalId);
       await markUserAsOffline(userId);
       await stopListening(userId, onNotification);
