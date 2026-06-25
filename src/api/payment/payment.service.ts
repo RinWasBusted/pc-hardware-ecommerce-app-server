@@ -147,6 +147,19 @@ export const HandlePayOSWebhook = async (payload: PayOSWebhookPayload) => {
 	const webhookData = await verifyPayOSWebhook(payload);
 	const paymentId = Number(webhookData.orderCode);
 
+	// PayOS sends a webhook with description 'confirm-webhook' or dummy order codes to verify the webhook endpoint.
+	// If the webhook signature is verified successfully, we return a success response immediately.
+	if (
+		webhookData.description === 'confirm-webhook' || 
+		paymentId === 0 || 
+		paymentId === 123
+	) {
+		return {
+			success: true,
+			message: 'Webhook verified successfully (Test/Confirm)',
+		};
+	}
+
 	if (!Number.isInteger(paymentId) || paymentId <= 0) {
 		throw new Error('orderCode PayOS không hợp lệ');
 	}
