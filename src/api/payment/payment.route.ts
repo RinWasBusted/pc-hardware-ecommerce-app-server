@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Authenticate } from '../../middleware/auth.middleware.js';
-import { createPayment, webhook } from './payment.controller.js';
+import { createPayment, webhook, checkPayment } from './payment.controller.js';
 
 const router = Router();
 
@@ -303,5 +303,58 @@ router.post('/webhook', webhook);
  *                       value: "Token không hợp lệ hoặc đã hết hạn"
  */
 router.post('/orders/:orderId', Authenticate, createPayment);
+
+/**
+ * @swagger
+ * /payments/orders/{orderId}/check:
+ *   post:
+ *     summary: Kiểm tra thủ công trạng thái thanh toán đơn hàng với PayOS
+ *     description: Truy vấn trực tiếp lên PayOS để lấy trạng thái mới nhất của đơn hàng và cập nhật hệ thống. Dành cho người dùng check lại đơn khi webhook bị chậm.
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         description: ID đơn hàng cần kiểm tra trạng thái thanh toán.
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Kiểm tra và đồng bộ trạng thái thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     order_id:
+ *                       type: integer
+ *                       example: 1
+ *                     payment_id:
+ *                       type: integer
+ *                       example: 12345
+ *                     payment_status:
+ *                       type: string
+ *                       enum: [success, failed, pending]
+ *                       example: "success"
+ *                     payosStatus:
+ *                       type: string
+ *                       enum: [PENDING, PAID, CANCELLED, EXPIRED, FAILED]
+ *                       example: "PAID"
+ *       400:
+ *         description: Lỗi kiểm tra thanh toán
+ *       401:
+ *         description: Không có quyền truy cập
+ */
+router.post('/orders/:orderId/check', Authenticate, checkPayment);
 
 export default router;

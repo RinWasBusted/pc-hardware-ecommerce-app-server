@@ -177,19 +177,34 @@ export const HandlePayOSWebhook = async (payload: PayOSWebhookPayload) => {
 				order_id: true,
 				payment_status: true,
 				paid_at: true,
-				order: {
-					select: {
-						id: true,
-						user_id: true,
-						payment_status: true,
-						order_status: true,
-					},
-				},
 			},
 		});
 
-		if (!payment) {
-			throw new Error('Không tìm thấy giao dịch thanh toán');
+		let orderId = payment?.order_id;
+		if (!orderId && webhookData.description) {
+			const match = webhookData.description.match(/^DH(\d+)-TT/);
+			if (match) {
+				orderId = Number(match[1]);
+			}
+		}
+
+		if (!orderId) {
+			throw new Error('Không xác định được đơn hàng cho giao dịch này');
+		}
+
+		const order = await tx.orders.findUnique({
+			where: { id: orderId },
+			select: {
+				id: true,
+				user_id: true,
+				payment_status: true,
+				order_status: true,
+				total: true,
+			},
+		});
+
+		if (!order) {
+			throw new Error('Đơn hàng không tồn tại');
 		}
 
 		const paymentUpdates: {
@@ -201,30 +216,41 @@ export const HandlePayOSWebhook = async (payload: PayOSWebhookPayload) => {
 			gateway_response: nextGatewayResponse,
 		};
 
-		if (payment.payment_status !== 'success') {
-			if (nextStatus === 'PAID') {
-				paymentUpdates.payment_status = 'success';
-			} else if (TERMINAL_FAILED_STATUSES.has(nextStatus)) {
-				paymentUpdates.payment_status = 'failed';
-			}
-		}
-
 		if (nextStatus === 'PAID') {
-			paymentUpdates.paid_at = payment.paid_at ?? new Date();
+			paymentUpdates.payment_status = 'success';
+			paymentUpdates.paid_at = payment?.paid_at ?? new Date();
 			const transactionReference = getLatestTransactionReference(paymentLink);
 			if (transactionReference) {
 				paymentUpdates.transaction_id = transactionReference;
 			}
+		} else if (TERMINAL_FAILED_STATUSES.has(nextStatus)) {
+			paymentUpdates.payment_status = 'failed';
 		}
 
-		await tx.payments.update({
-			where: { id: payment.id },
-			data: paymentUpdates,
-		});
+		if (payment) {
+			if (payment.payment_status !== 'success') {
+				await tx.payments.update({
+					where: { id: payment.id },
+					data: paymentUpdates,
+				});
+			}
+		} else if (nextStatus === 'PAID') {
+			await tx.payments.create({
+				data: {
+					order_id: order.id,
+					method: 'bank_transfer',
+					amount: order.total,
+					payment_status: 'success',
+					paid_at: paymentUpdates.paid_at,
+					transaction_id: paymentUpdates.transaction_id,
+					gateway_response: nextGatewayResponse as any,
+				},
+			});
+		}
 
-		if (nextStatus === 'PAID' && payment.order.payment_status !== 'paid') {
+		if (nextStatus === 'PAID' && order.payment_status !== 'paid') {
 			await tx.orders.update({
-				where: { id: payment.order.id },
+				where: { id: order.id },
 				data: {
 					payment_status: 'paid',
 				},
@@ -232,28 +258,136 @@ export const HandlePayOSWebhook = async (payload: PayOSWebhookPayload) => {
 
 			await tx.orderStatusLogs.create({
 				data: {
-					order_id: payment.order.id,
-					changed_by: payment.order.user_id,
-					old_status: payment.order.order_status,
-					new_status: payment.order.order_status,
+					order_id: order.id,
+					changed_by: order.user_id,
+					old_status: order.order_status,
+					new_status: order.order_status,
 					note: 'Thanh toán PayOS thành công',
 				},
 			});
 		}
 
-		if (TERMINAL_FAILED_STATUSES.has(nextStatus) || NON_TERMINAL_STATUSES.has(nextStatus) || nextStatus === 'PAID') {
-			return {
-				order_id: payment.order.id,
-				payment_id: payment.id,
-				payment_status: paymentUpdates.payment_status ?? payment.payment_status,
-				payosStatus: nextStatus,
-			};
+		return {
+			order_id: order.id,
+			payment_id: payment?.id ?? null,
+			payment_status: paymentUpdates.payment_status ?? payment?.payment_status ?? 'success',
+			payosStatus: nextStatus,
+		};
+	});
+};
+
+export const CheckPayOSPayment = async (userId: number, orderId: number) => {
+	const order = await prisma.orders.findFirst({
+		where: {
+			id: orderId,
+			user_id: userId,
+		},
+		select: {
+			id: true,
+			user_id: true,
+			payment_status: true,
+			order_status: true,
+			total: true,
+		},
+	});
+
+	if (!order) {
+		throw new Error('Đơn hàng không tồn tại');
+	}
+
+	const latestPayment = await prisma.payments.findFirst({
+		where: {
+			order_id: orderId,
+			method: 'bank_transfer',
+		},
+		orderBy: {
+			created_at: 'desc',
+		},
+	});
+
+	if (!latestPayment) {
+		throw new Error('Không tìm thấy giao dịch thanh toán cho đơn hàng này');
+	}
+
+	let paymentLink: Awaited<ReturnType<typeof getPayOSPaymentLink>>;
+	try {
+		paymentLink = await getPayOSPaymentLink(latestPayment.id);
+	} catch (error: any) {
+		throw new Error(`Không thể truy vấn thông tin thanh toán từ PayOS: ${error.message}`);
+	}
+
+	const nextStatus = paymentLink.status;
+	const gatewayResponse = mapGatewayResponse({} as any, paymentLink);
+
+	return prisma.$transaction(async (tx) => {
+		const currentPayment = await tx.payments.findUnique({
+			where: { id: latestPayment.id },
+		});
+
+		const paymentUpdates: {
+			gateway_response: any;
+			payment_status?: 'success' | 'failed';
+			paid_at?: Date;
+			transaction_id?: string;
+		} = {
+			gateway_response: gatewayResponse,
+		};
+
+		if (nextStatus === 'PAID') {
+			paymentUpdates.payment_status = 'success';
+			paymentUpdates.paid_at = currentPayment?.paid_at ?? new Date();
+			const transactionReference = getLatestTransactionReference(paymentLink);
+			if (transactionReference) {
+				paymentUpdates.transaction_id = transactionReference;
+			}
+		} else if (TERMINAL_FAILED_STATUSES.has(nextStatus)) {
+			paymentUpdates.payment_status = 'failed';
+		}
+
+		if (currentPayment) {
+			if (currentPayment.payment_status !== 'success') {
+				await tx.payments.update({
+					where: { id: currentPayment.id },
+					data: paymentUpdates,
+				});
+			}
+		} else if (nextStatus === 'PAID') {
+			await tx.payments.create({
+				data: {
+					order_id: order.id,
+					method: 'bank_transfer',
+					amount: order.total,
+					payment_status: 'success',
+					paid_at: paymentUpdates.paid_at,
+					transaction_id: paymentUpdates.transaction_id,
+					gateway_response: gatewayResponse as any,
+				},
+			});
+		}
+
+		if (nextStatus === 'PAID' && order.payment_status !== 'paid') {
+			await tx.orders.update({
+				where: { id: order.id },
+				data: {
+					payment_status: 'paid',
+				},
+			});
+
+			await tx.orderStatusLogs.create({
+				data: {
+					order_id: order.id,
+					changed_by: order.user_id,
+					old_status: order.order_status,
+					new_status: order.order_status,
+					note: 'Thanh toán PayOS thành công (Truy vấn thủ công)',
+				},
+			});
 		}
 
 		return {
-			order_id: payment.order.id,
-			payment_id: payment.id,
-			payment_status: payment.payment_status,
+			order_id: order.id,
+			payment_id: currentPayment?.id ?? null,
+			payment_status: paymentUpdates.payment_status ?? currentPayment?.payment_status ?? 'success',
 			payosStatus: nextStatus,
 		};
 	});
