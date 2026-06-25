@@ -98,6 +98,7 @@ export const CreatePayOSPayment = async (userId: number, orderId: number) => {
 	try {
 		const paymentData = await createPayOSPaymentLink({
 			orderCode: payment.id,
+			orderId: order.id,
 			amount,
 			description: `DH${order.id}-TT${payment.id}`,
 			buyerName: order.user.full_name,
