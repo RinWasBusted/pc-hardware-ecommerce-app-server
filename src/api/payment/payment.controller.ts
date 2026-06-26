@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { CreatePayOSPayment, HandlePayOSWebhook } from './payment.service.js';
+import { CreatePayOSPayment, HandlePayOSWebhook, CheckPayOSPayment } from './payment.service.js';
 import { PaymentStatus, PaymentMethod } from '@prisma/client';
 
 export const createPayment = async (req: Request, res: Response) => {
@@ -47,6 +47,39 @@ export const webhook = async (req: Request, res: Response) => {
 		return res.status(400).json({
 			success: false,
 			message: error.message ?? 'Invalid webhook',
+		});
+	}
+};
+
+export const checkPayment = async (req: Request, res: Response) => {
+	try {
+		const userId = Number(res.locals.userId);
+		const orderId = Number(req.params.orderId);
+
+		if (Number.isNaN(userId)) {
+			return res.status(401).json({
+				success: false,
+				message: 'Không xác định được người dùng',
+			});
+		}
+
+		if (Number.isNaN(orderId) || orderId <= 0) {
+			return res.status(400).json({
+				success: false,
+				message: 'orderId không hợp lệ',
+			});
+		}
+
+		const result = await CheckPayOSPayment(userId, orderId);
+
+		return res.status(200).json({
+			success: true,
+			data: result,
+		});
+	} catch (error: any) {
+		return res.status(400).json({
+			success: false,
+			message: error.message,
 		});
 	}
 };

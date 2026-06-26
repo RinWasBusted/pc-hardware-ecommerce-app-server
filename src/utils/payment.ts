@@ -40,14 +40,33 @@ const getClientUrl = () => {
 	return 'http://localhost:3000';
 };
 
-const normalizeClientPath = (baseUrl: string, path: string) => `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+const normalizeClientPath = (baseUrl: string, path: string) => {
+	const cleanBase = baseUrl.replace(/\/+$/, '');
+	const cleanPath = path.replace(/^\/+/, '');
+	return `${cleanBase}/${cleanPath}`;
+};
 
-const getReturnUrls = () => {
+const getReturnUrls = (orderId?: number) => {
 	const clientUrl = getClientUrl();
+	const isAppSchema = !clientUrl.startsWith('http://') && !clientUrl.startsWith('https://');
+
+	let baseUrl = clientUrl;
+	if (isAppSchema) {
+		const scheme = clientUrl.split('://')[0];
+		baseUrl = `${scheme}://payment`;
+	}
+
+	const successPath = isAppSchema ? 'success' : 'payment/success';
+	const cancelPath = isAppSchema ? 'cancel' : 'payment/cancel';
+
+	const returnUrl = normalizeClientPath(baseUrl, successPath);
+	const cancelUrl = normalizeClientPath(baseUrl, cancelPath);
+
+	const query = orderId ? `?orderId=${orderId}` : '';
 
 	return {
-		cancelUrl: normalizeClientPath(clientUrl, 'payment/cancel'),
-		returnUrl: normalizeClientPath(clientUrl, 'payment/success'),
+		cancelUrl: `${cancelUrl}${query}`,
+		returnUrl: `${returnUrl}${query}`,
 	};
 };
 
@@ -61,19 +80,20 @@ const getExpiredAt = () => {
 };
 
 export const createPayOSPaymentLink = async (
-	paymentData: Omit<CreatePaymentLinkRequest, 'returnUrl' | 'cancelUrl'>,
+	paymentData: Omit<CreatePaymentLinkRequest, 'returnUrl' | 'cancelUrl'> & { orderId?: number },
 ): Promise<CreatePaymentLinkResponse> => {
 	if (!paymentData) {
 		throw new Error('Payment data is required');
 	}
 
-	const { cancelUrl, returnUrl } = getReturnUrls();
+	const { orderId, ...rest } = paymentData;
+	const { cancelUrl, returnUrl } = getReturnUrls(orderId);
 
 	return getPayOSClient().paymentRequests.create({
-		...paymentData,
+		...rest,
 		cancelUrl,
 		returnUrl,
-		...(paymentData.expiredAt !== undefined ? {} : (() => {
+		...(rest.expiredAt !== undefined ? {} : (() => {
 			const expiredAt = getExpiredAt();
 			return expiredAt ? { expiredAt } : {};
 		})()),
