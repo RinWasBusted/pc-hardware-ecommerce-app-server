@@ -1,5 +1,7 @@
 import { prisma } from '../../../utils/prisma.js';
 import { getStorageUrl } from '../../../utils/storage.js';
+import { NotificationType } from '@prisma/client';
+import { createNotification } from '../../notification/notification.service.js';
 
 export type AdminReturnRequestListFilters = {
 	status?: string;
@@ -243,6 +245,7 @@ export const ApproveAdminReturnRequest = async (
 			select: {
 				id: true,
 				status: true,
+				user_id: true,
 				order: {
 					select: {
 						total: true,
@@ -279,6 +282,16 @@ export const ApproveAdminReturnRequest = async (
 			},
 		});
 
+		createNotification(
+			[request.user_id],
+			NotificationType.order,
+			'Yêu cầu trả hàng được duyệt',
+			`Yêu cầu trả hàng #${request.id} của bạn đã được duyệt. Số tiền hoàn: ${refundAmount.toLocaleString('vi-VN')} VNĐ.`,
+			{ return_request_id: request.id, status: 'approved' }
+		).catch((err) => {
+			console.error('Lỗi khi gửi thông báo duyệt trả hàng:', err);
+		});
+
 		return {
 			id: updated.id,
 			status: updated.status,
@@ -299,6 +312,7 @@ export const RejectAdminReturnRequest = async (
 			select: {
 				id: true,
 				status: true,
+				user_id: true,
 			},
 		});
 
@@ -325,6 +339,16 @@ export const RejectAdminReturnRequest = async (
 			},
 		});
 
+		createNotification(
+			[request.user_id],
+			NotificationType.order,
+			'Yêu cầu trả hàng bị từ chối',
+			`Yêu cầu trả hàng #${request.id} của bạn đã bị từ chối. Lý do: ${adminNote}`,
+			{ return_request_id: request.id, status: 'rejected' }
+		).catch((err) => {
+			console.error('Lỗi khi gửi thông báo từ chối trả hàng:', err);
+		});
+
 		return {
 			id: updated.id,
 			status: updated.status,
@@ -341,6 +365,7 @@ export const MarkAdminReturnRequestReceived = async (requestId: number, adminId:
 			select: {
 				id: true,
 				status: true,
+				user_id: true,
 				return_items: {
 					select: {
 						id: true,
@@ -392,6 +417,16 @@ export const MarkAdminReturnRequestReceived = async (requestId: number, adminId:
 			},
 		});
 
+		createNotification(
+			[request.user_id],
+			NotificationType.order,
+			'Đã nhận sản phẩm trả về',
+			`Cửa hàng đã nhận được sản phẩm từ yêu cầu trả hàng #${request.id} của bạn.`,
+			{ return_request_id: request.id, status: 'received' }
+		).catch((err) => {
+			console.error('Lỗi khi gửi thông báo đã nhận hàng trả về:', err);
+		});
+
 		return {
 			id: updated.id,
 			status: updated.status,
@@ -409,6 +444,7 @@ export const RefundAdminReturnRequest = async (requestId: number, adminId: numbe
 				id: true,
 				status: true,
 				order_id: true,
+				user_id: true,
 				order: {
 					select: {
 						id: true,
@@ -465,6 +501,16 @@ export const RefundAdminReturnRequest = async (requestId: number, adminId: numbe
 			data: {
 				payment_status: 'refunded',
 			},
+		});
+
+		createNotification(
+			[request.user_id],
+			NotificationType.order,
+			'Hoàn tiền thành công',
+			`Yêu cầu trả hàng #${request.id} đã hoàn tất. Số tiền hoàn trả đã được chuyển thành công.`,
+			{ return_request_id: request.id, status: 'completed' }
+		).catch((err) => {
+			console.error('Lỗi khi gửi thông báo hoàn tiền:', err);
 		});
 
 		return {
