@@ -5,7 +5,7 @@ import * as couponService from './coupon.service.js';
 export const ListCouponsController = async (req: Request, res: Response) => {
 	try {
 
-		const coupons = await couponService.ListCoupons(true);
+		const coupons = await couponService.ListCoupons();
 
 		return res.status(200).json({
 			success: true,
