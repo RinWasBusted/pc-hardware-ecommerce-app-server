@@ -26,22 +26,83 @@ const extractKeywords = (message: string): string[] => {
     return words.length > 0 ? [...new Set(words)] : [message.toLowerCase()];
 };
 
-const fetchProductContext = async (userMessage: string): Promise<string> => {
-    const keywords = extractKeywords(userMessage);
+const parsePriceCondition = (message: string) => {
+    // 1. ƯU TIÊN KIỂM TRA DẠNG KHOẢNG GIÁ (VD: từ 25 đến 30 triệu, 25 - 30 tr)
+    const rangeRegex = /(?:từ\s+)?(\d+(?:[\.,]\d+)?)\s*(?:đến|-)\s*(\d+(?:[\.,]\d+)?)\s*(triệu|tr|củ)/i;
+    const rangeMatch = message.match(rangeRegex);
 
-    const orConditions = keywords.flatMap(kw => [
-        { name: { contains: kw, mode: 'insensitive' as const } },
-        { description: { contains: kw, mode: 'insensitive' as const } },
-        { brand: { name: { contains: kw, mode: 'insensitive' as const } } },
-        { category: { name: { contains: kw, mode: 'insensitive' as const } } },
-    ]);
+    if (rangeMatch) {
+        const num1 = parseFloat(rangeMatch[1]!.replace(',', '.'));
+        const num2 = parseFloat(rangeMatch[2]!.replace(',', '.'));
+        
+        // Dùng Math.min và Math.max để phòng trường hợp khách gõ ngược "30 đến 25 triệu"
+        const priceCondition = {
+            gte: Math.min(num1, num2) * 1000000,
+            lte: Math.max(num1, num2) * 1000000
+        };
+        const cleanMessage = message.replace(rangeMatch[0], '');
+        return { priceCondition, cleanMessage };
+    }
+
+    // 2. NẾU KHÔNG PHẢI KHOẢNG GIÁ, KIỂM TRA DẠNG ĐƠN (VD: trên 28 triệu, dưới 30 củ)
+    const singleRegex = /(trên|dưới|khoảng|tầm|hơn)\s+(\d+(?:[\.,]\d+)?)\s*(triệu|tr|củ)/i;
+    const singleMatch = message.match(singleRegex);
+    
+    if (!singleMatch) return { priceCondition: null, cleanMessage: message };
+    
+    const condition = singleMatch[1]!.toLowerCase();
+    const priceNum = parseFloat(singleMatch[2]!.replace(',', '.')); 
+    const priceValue = priceNum * 1000000; 
+
+    let priceCondition: any = null;
+    if (condition === 'trên' || condition === 'hơn') {
+        priceCondition = { gte: priceValue };
+    } else if (condition === 'dưới') {
+        priceCondition = { lte: priceValue };
+    } else if (condition === 'khoảng' || condition === 'tầm') {
+        priceCondition = { gte: priceValue - 2000000, lte: priceValue + 2000000 };
+    }
+
+    const cleanMessage = message.replace(singleMatch[0], '');
+
+    return { priceCondition, cleanMessage };
+};
+
+const fetchProductContext = async (userMessage: string): Promise<string> => {
+    // 1. Tách điều kiện giá và lấy câu nói đã xóa cụm giá
+    const { priceCondition, cleanMessage } = parsePriceCondition(userMessage);
+
+    // 2. Tách từ khóa từ câu đã được làm sạch
+    const keywords = extractKeywords(cleanMessage);
+
+    const whereClause: any = {
+        status: 'available',
+    };
+
+    // 3. TẠO VÀ GÁN orConditions vào whereClause (Lỗi của bạn nằm ở việc thiếu gán giá trị này)
+    if (keywords.length > 0) {
+        const orConditions = keywords.flatMap(kw => [
+            { name: { contains: kw, mode: 'insensitive' as const } },
+            { description: { contains: kw, mode: 'insensitive' as const } },
+            { brand: { name: { contains: kw, mode: 'insensitive' as const } } },
+            { category: { name: { contains: kw, mode: 'insensitive' as const } } },
+        ]);
+        whereClause.OR = orConditions; 
+    }
+
+    // 4. Gán điều kiện lọc giá (nếu có)
+    if (priceCondition) {
+        whereClause.product_variants = {
+            some: {
+                is_active: true,
+                price: priceCondition 
+            }
+        };
+    }
 
     const products = await prisma.products.findMany({
-        where: {
-            status: 'available',
-            OR: orConditions,
-        },
-        take: 5,
+        where: whereClause,
+        take: 200, 
         select: {
             name: true,
             slug: true,
@@ -59,7 +120,11 @@ const fetchProductContext = async (userMessage: string): Promise<string> => {
             },
             brand: { select: { name: true } },
             product_variants: {
-                where: { is_active: true },
+                where: { 
+                    is_active: true,
+                    // Fix lỗi Typescript/Prisma khi truyền undefined bằng cách dùng Spread Operator
+                    ...(priceCondition && { price: priceCondition }) 
+                },
                 orderBy: { price: 'asc' },
                 select: {
                     version: true,
@@ -81,10 +146,24 @@ const fetchProductContext = async (userMessage: string): Promise<string> => {
     });
 
     if (products.length === 0) {
-        return `Không tìm thấy sản phẩm nào khớp với từ khoá: ${keywords.join(', ')}.`;
+        return `Không tìm thấy sản phẩm nào phù hợp với yêu cầu tìm kiếm.`;
     }
 
-    return products.map((p) => {
+    // ... (phía trên giữ nguyên) ...
+    
+    const contextLines = products.map((p) => {
+        // LỚP PHÒNG NGỰ JS: Lọc lại một lần nữa bằng code để đảm bảo chuẩn 100%
+        const validVariants = p.product_variants.filter(v => {
+            if (!priceCondition) return true; // Không hỏi giá thì lấy hết
+            const price = Number(v.price);
+            if (priceCondition.gte && price < priceCondition.gte) return false;
+            if (priceCondition.lte && price > priceCondition.lte) return false;
+            return true;
+        });
+
+        // NẾU KHÔNG CÓ PHIÊN BẢN NÀO ĐÚNG GIÁ -> BỎ QUA TOÀN BỘ SẢN PHẨM NÀY
+        if (validVariants.length === 0) return null;
+
         const categoryPath = p.category.parent
             ? `${p.category.parent.name} > ${p.category.name}`
             : p.category.name;
@@ -93,7 +172,8 @@ const fetchProductContext = async (userMessage: string): Promise<string> => {
             ? JSON.stringify(p.specifications).slice(0, 250)
             : 'Không có';
 
-        const variantLines = p.product_variants.map((v) => {
+        // Render variants từ validVariants (đã lọc sạch)
+        const variantLines = validVariants.map((v) => {
             const parts: string[] = [];
             if (v.version) parts.push(`Phiên bản: ${v.version}`);
             if (v.color) parts.push(`Màu: ${v.color}`);
@@ -120,7 +200,14 @@ const fetchProductContext = async (userMessage: string): Promise<string> => {
             variantLines ? `  Phiên bản & Giá:\n${variantLines}` : '  (Chưa có phiên bản)',
             reviewLines ? `  Nhận xét khách hàng:\n${reviewLines}` : '',
         ].filter(Boolean).join('\n');
-    }).join('\n\n---\n');
+    }).filter(Boolean); // Lọc bỏ tất cả các sản phẩm null (không thỏa mãn giá)
+
+    // Nếu list rỗng sau khi lọc qua JS
+    if (contextLines.length === 0) {
+        return `Không tìm thấy sản phẩm nào phù hợp với yêu cầu tìm kiếm.`;
+    }
+
+    return contextLines.join('\n\n---\n');
 };
 
 const fetchCategoryTree = async (): Promise<string> => {
@@ -225,7 +312,8 @@ QUY TẮC TUYỆT ĐỐI — VI PHẠM LÀ SAI:
 - Nếu không tìm thấy sản phẩm phù hợp, trả lời: "Hiện cửa hàng chưa có sản phẩm phù hợp với yêu cầu này, bạn thử dùng chức năng Tìm kiếm trên app nhé!"
 - Tuyệt đối không được tự đặt ra tên sản phẩm, model, thông số, giá không có trong dữ liệu.
 - Thương hiệu nào của sản phẩm thì nói đúng thương hiệu đó — không được suy diễn hay đổi tên.
-- Không đề cập hay hỏi về bất kỳ thông tin cá nhân nào của người dùng.`;
+- Không đề cập hay hỏi về bất kỳ thông tin cá nhân nào của người dùng.
+- BẮT BUỘC: Không bao giờ được gợi ý, liệt kê hoặc nhắc đến các sản phẩm có mức giá nằm ngoài yêu cầu ngân sách của người dùng. Nếu dữ liệu cung cấp không có sản phẩm nào khớp, hãy báo hết hàng.`;
 };
 
 export const chatWithBot = async (
